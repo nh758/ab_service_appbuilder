@@ -8,8 +8,10 @@
   "dependencies": {
     "ab-utils": "github:Hiro-Nakamura/ab-utils#master",
     "cote": "^1.0.0",
+    "knex": "^0.21.16",
     "lodash": "^4.17.20",
-    "moment": "^2.29.1"
+    "moment": "^2.29.1",
+    "mysql": "^2.18.1"
   },
   "scripts": {
     "test": "run-p lint custom-tests",

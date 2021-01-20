@@ -83,6 +83,8 @@ module.exports = {
                      });
 
                      Factories[tenantID] = newFactory;
+
+                     return newFactory.init();
                   }
                });
             })
