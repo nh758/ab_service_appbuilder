@@ -1,9 +1,67 @@
 /**
  * model-get
- * our Request handler.
+ * Handle any operations where an Object is trying to retrive a value[s] it is
+ * responsible for.
  */
 
 const ABBootstrap = require("../utils/ABBootstrap");
+const Errors = require("../utils/Errors");
+
+/**
+ * tryFind()
+ * we wrap our actual find actions in this tryFind() routine.  Mostly so that
+ * if we encounter an Error that would just be a simple: retry, we can do that
+ * easily. (looking at you ECONNRESET errors).
+ * @param {ABObject} object
+ *       the ABObject that we are using to perform the findAll()s
+ * @param {obj} cond
+ *       the condition object for the findAll() where conditions.
+ * @param {obj} condDefaults
+ *       our findAll() requires some default info about the USER
+ * @param {ABUtil.request} req
+ *       the request instance that handles requests for the current tenant
+ * @param {int} retry
+ *       a count of how many retry attempts.
+ * @param {Error} lastError
+ *       the last Error reported in trying to make the findAll().
+ *       this is what is passed on if we have too many retries.
+ * @return {Promise}
+ *       .resolve() with the [{data}] entries from the findAll();
+ */
+function tryFind(object, cond, condDefaults, req, retry = 0, lastError = null) {
+   // prevent too many retries
+   if (retry >= 3) {
+      req.log("Too Many Retries ... failing.");
+      if (lastError) {
+         throw lastError;
+      } else {
+         throw new Error("Too Many failed Retries.");
+      }
+      return;
+   }
+
+   var pFindAll = object.model().findAll(cond, condDefaults, req);
+
+   var pCount = Promise.resolve().then(() => {
+      // if no cond.limit was set, then return the length pFindAll
+      if (!cond.limit) {
+         // return the length of pFindAll
+         return pFindAll.then((results) => results.length);
+      } else {
+         return object.model().findCount(cond, condDefaults, req);
+      }
+   });
+
+   return Promise.all([pFindAll, pCount]).catch((err) => {
+      if (Errors.isRetryError(err.code)) {
+         req.log(`LOOKS LIKE WE GOT A ${err.code}! ... trying again:`);
+         return tryFind(object, cond, condDefaults, req, retry + 1, err);
+      }
+
+      // if we get here, this isn't a RESET, so propogate the error
+      throw err;
+   });
+}
 
 module.exports = {
    /**
@@ -40,117 +98,89 @@ module.exports = {
     *        a node style callback(err, results) to send data when job is finished
     */
    fn: function handler(req, cb) {
-      //
+      req.log("appbuilder.model-get:");
 
-      // access your config settings if you need them:
-      /*
-      var config = req.config();
-       */
-
-      // Get the passed in parameters
-      /*
-      var email = req.param("email");
-       */
-
-      // access any Models you need
-      /*
-      var Model = req.model("Name");
-       */
-
-      /*
-       * perform action here.
-       *
-       * when job is finished then:
-      cb(null, { param: "value" });
-
-       * or if error then:
-      cb(err);
-
-       * example:
-      Model.find({ email })
-         .then((list) => {
-            cb(null, list);
-         })
-         .catch((err) => {
-            cb(err);
-         });
-
-       */
-
+      // get the AB for the current tenant
       ABBootstrap.init(req)
          .then((AB) => {
             var id = req.param("objectID");
             var object = AB.objectByID(id);
             if (!object) {
-               // NOT FOUND error:
-               req.log(`Error:unknown object [${objectID}].`);
-               err = new Error(`Unknown Object`);
-               err.code = "ENOTFOUND";
-               cb(err);
-               return;
+               object = AB.queryByID(id);
+            }
+            if (!object) {
+               return Errors.missingObject(id, req, cb);
             }
 
-            var cond = {};
-            var fields = ["where", "sort", "offset", "limit"];
-            fields.forEach((f) => {
-               var val = req.param(f);
-               if (val) {
-                  cond[f] = val;
-               }
-            });
+            var cond = req.param("cond");
+            // var fields = ["where", "sort", "offset", "limit", "populate"];
+            // fields.forEach((f) => {
+            //    var val = req.param(f);
+            //    if (val) {
+            //       cond[f] = val;
+            //    }
+            // });
 
             var condDefaults = {
                languageCode: req.languageCode(),
                username: req.username(),
             };
 
-            // IMPROVEMENTS:
-            // query User's Scope's for this Object & return an ID IN [...] condition
-            //    that is added to the incoming condition.
-            //
-            // pre adjust cond before making these two queries
-            //
-            // figure out if pCount needs a specific query to find All matches
-            //     or if the .length of the pFindAll can be used.
-            //
-            // object.model().findCount(cond, condDefaults, req);
-            //
-            var pFindAll = object.model().findAll(cond, condDefaults, req);
+            req.log(JSON.stringify(cond));
+            req.log(JSON.stringify(condDefaults));
 
-            var pCount = Promise.resolve().then(() => {
-               // return the length of pFindAll
-               return pFindAll.then((results) => results.length);
-            });
+            // 1) make sure any incoming cond.where values are in our QB
+            // format.  Like sails conditions, old filterConditions, etc...
+            object.convertToQueryBuilderConditions(cond);
 
-            Promise.all([pFindAll, pCount])
-               .then((results) => {
-                  // {array} results
-                  // results[0] : {array} the results of the .findAll()
-                  // results[1] : {int} the results of the .count()
+            // 2) make sure any given conditions also include the User's
+            // scopes.
+            // TODO:
+            // object.includeScopes(cond, condDefaults) .then()
 
-                  var result = {};
-                  result.data = results[0];
+            // 3) now Take all the conditions and reduce them to their final
+            // useable form: no complex in_query, contains_user, etc...
+            object
+               .reduceConditions(cond.where, condDefaults)
+               .then(() => {
+                  req.log(`reduced where: ${JSON.stringify(cond.where)}`);
+                  // 4) Perform the Find Operations
+                  tryFind(object, cond, condDefaults, req)
+                     .then((results) => {
+                        // {array} results
+                        // results[0] : {array} the results of the .findAll()
+                        // results[1] : {int} the results of the .findCount()
 
-                  // webix pagination format:
-                  result.total_count = results[1];
-                  result.pos = cond.offset || 0;
+                        var result = {};
+                        result.data = results[0];
 
-                  result.offset = cond.offset || 0;
-                  result.limit = cond.limit || 0;
+                        // webix pagination format:
+                        result.total_count = results[1];
+                        result.pos = cond.offset || 0;
 
-                  if (result.offset + result.data.length < result.total_count) {
-                     result.offset_next = result.offset + result.limit;
-                  }
-                  cb(null, result);
+                        result.offset = cond.offset || 0;
+                        result.limit = cond.limit || 0;
+
+                        if (
+                           result.offset + result.data.length <
+                           result.total_count
+                        ) {
+                           result.offset_next = result.offset + result.limit;
+                        }
+                        cb(null, result);
+                     })
+                     .catch((err) => {
+                        req.logError("IN tryFind().catch() handler:", err);
+                        cb(err);
+                     });
                })
                .catch((err) => {
-                  console.log("IN Promise.all().catch() handler:");
-                  // TODO: if ECONNRESET error: just try again:
-                  console.error(err);
+                  req.logError("ERROR reducing conditions:", err);
+                  cb(err);
                });
          })
          .catch((err) => {
-            req.log("ERROR:", err);
+            req.logError("ERROR:", err);
             cb(err);
          });
 
