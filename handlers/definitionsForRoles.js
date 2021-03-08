@@ -30,6 +30,7 @@ module.exports = {
     * }
     */
    inputValidation: {
+      roles: { array: true, required: true },
       // uuid: {
       //    required: true,
       //    string: {uuid:true},  // joi.string().uuid()
