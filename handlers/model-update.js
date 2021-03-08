@@ -3,11 +3,13 @@
  * Handle any operations where an Object is trying to update a value it is
  * responsible for.
  */
-
+const async = require("async");
 const ABBootstrap = require("../utils/ABBootstrap");
 const Errors = require("../utils/Errors");
+const RetryFind = require("../utils/RetryFind");
+const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.js");
 
-const { ref, raw } = require("objection");
+const { ref /*, raw  */ } = require("objection");
 
 module.exports = {
    /**
@@ -67,9 +69,9 @@ module.exports = {
             var id = req.param("ID");
             var values = req.param("values");
 
-            updateData(AB, object, id, values, condDefaults, req)
-               .then((result) => {
-                  /*
+            // updateData(AB, object, id, values, condDefaults, req)
+            //    .then((result) => {
+            /*
  // TODO: Process Triggers:
    var key = `${object.id}.updated`;
    return ABProcess.trigger(key, result)
@@ -97,12 +99,142 @@ module.exports = {
       });
 */
 
-                  cb(null, result);
-               })
-               .catch((err) => {
-                  req.logError("Error performing update:", err);
-                  cb(err);
-               });
+            //    cb(null, result);
+            // })
+            // .catch((err) => {
+            //    req.logError("Error performing update:", err);
+            //    cb(err);
+            // });
+
+            var oldItem = null;
+            var newRow = null;
+            async.series(
+               {
+                  // 1) pull the old Item so we can compare updated connected
+                  // entries that need to be updated.
+                  findOld: (done) => {
+                     req.performance.mark("find.old");
+                     RetryFind(
+                        object,
+                        {
+                           where: {
+                              glue: "and",
+                              rules: [
+                                 {
+                                    key: object.PK(),
+                                    rule: "equals",
+                                    value: id,
+                                 },
+                              ],
+                           },
+                           populate: true,
+                        },
+                        condDefaults,
+                        req
+                     )
+                        .then((result) => {
+                           req.performance.measure("find.old");
+                           oldItem = result;
+                           done();
+                        })
+                        .catch(done);
+                  },
+
+                  // 2) Perform the Initial Update of the data
+                  update: (done) => {
+                     req.performance.mark("update");
+                     updateData(AB, object, id, values, condDefaults, req)
+                        .then((result) => {
+                           newRow = result;
+                           req.performance.measure("update");
+                           // end the api call here
+                           cb(null, result);
+
+                           // proceed with the process
+                           done(null, result);
+                        })
+                        .catch((err) => {
+                           req.logError("Error performing update:", err);
+                           cb(err);
+                           done(err);
+                        });
+                  },
+                  // 3) perform the lifecycle handlers.
+                  postHandlers: (done) => {
+                     // These can be performed in parallel
+                     async.parallel(
+                        {
+                           logger: (next) => {
+                              req.serviceRequest(
+                                 "log_manager.rowlog-create",
+                                 {
+                                    user: condDefaults.username,
+                                    data: values,
+                                    level: "update",
+                                    row: id,
+                                    object: object.id,
+                                 },
+                                 (err) => {
+                                    next(err);
+                                 }
+                              );
+                           },
+                           trigger: (next) => {
+                              req.log("TODO: Trigger [object].update ");
+                              next();
+                           },
+                           // Alert our Clients of changed data:
+                           staleUpates: (next) => {
+                              req.performance.mark("stale.update");
+                              UpdateConnectedFields(
+                                 AB,
+                                 req,
+                                 object,
+                                 oldItem,
+                                 newRow,
+                                 condDefaults
+                              )
+                                 .then(() => {
+                                    req.performance.measure("stale.update");
+                                    next();
+                                 })
+                                 .catch((err) => {
+                                    next(err);
+                                 });
+                           },
+                        },
+                        (err) => {
+                           ////
+                           //// errors here need to be alerted to our Developers:
+                           ////
+                           if (err) {
+                              req.notify("developer", err, {
+                                 context: "model-update::postHandlers",
+                                 jobID: req.jobID,
+                                 objectID: object.id,
+                                 condDefaults,
+                                 newRow,
+                              });
+                           }
+                           req.performance.log([
+                              "log_manager.rowlog-create",
+                              "stale.update",
+                           ]);
+                           done(err);
+                        }
+                     );
+                  },
+               },
+               (/* err, results */) => {
+                  // errors at this point should have already been processed
+                  // if (err) {
+                  //    err = Errors.repackageError(err);
+                  //    req.log(err);
+                  //    cb(err);
+                  //    return;
+                  // }
+               }
+            );
          })
          .catch((err) => {
             req.logError("ERROR:", err);
@@ -140,7 +272,7 @@ function cleanUp(object, data) {
 function updateData(AB, object, id, values, userData, req) {
    // get translations values for the external object
    // it will update to translations table after model values updated
-   let transParams = AB.cloneDeep(values.translations);
+   // let transParams = AB.cloneDeep(values.translations);
 
    let validationErrors = object.isValidData(values);
    if (validationErrors.length > 0) {
@@ -185,14 +317,55 @@ function updateData(AB, object, id, values, userData, req) {
 
    // Do Knex update data tasks
    return new Promise((resolve, reject) => {
-      object
-         .model()
-         .update(id, values, userData)
+      retryUpdate(object, id, values, userData, req)
          .then((fullEntry) => {
             resolve(fullEntry);
          })
-         .catch((err) => {});
+         .catch((err) => {
+            reject(err);
+         });
    });
+}
+
+function retryUpdate(
+   object,
+   id,
+   values,
+   condDefaults,
+   req,
+   retry = 0,
+   lastError = null
+) {
+   // prevent too many retries
+   if (retry >= 3) {
+      req.log("Too Many Retries ... failing.");
+      if (lastError) {
+         throw lastError;
+      } else {
+         throw new Error("Too Many failed Retries.");
+      }
+   }
+
+   return object
+      .model()
+      .update(id, values, condDefaults)
+      .catch((err) => {
+         if (Errors.isRetryError(err.code)) {
+            req.log(`LOOKS LIKE WE GOT A ${err.code}! ... trying again:`);
+            return retryUpdate(
+               object,
+               id,
+               values,
+               condDefaults,
+               req,
+               retry + 1,
+               err
+            );
+         }
+
+         // if we get here, this isn't a RESET, so propogate the error
+         throw err;
+      });
 }
 
 /*

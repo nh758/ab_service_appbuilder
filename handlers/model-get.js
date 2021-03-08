@@ -119,13 +119,6 @@ module.exports = {
             }
 
             var cond = req.param("cond");
-            // var fields = ["where", "sort", "offset", "limit", "populate"];
-            // fields.forEach((f) => {
-            //    var val = req.param(f);
-            //    if (val) {
-            //       cond[f] = val;
-            //    }
-            // });
 
             var condDefaults = {
                languageCode: req.languageCode(),

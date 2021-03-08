@@ -2,7 +2,7 @@
  * model-post
  * our Request handler.
  */
-
+const async = require("async");
 const ABBootstrap = require("../utils/ABBootstrap");
 const Errors = require("../utils/Errors");
 
@@ -43,7 +43,7 @@ function tryCreate(
       } else {
          throw new Error("Too Many failed Retries.");
       }
-      return;
+      // return;
    }
 
    return object
@@ -111,6 +111,7 @@ module.exports = {
             var id = req.param("objectID");
             var object = AB.objectByID(id);
             if (!object) {
+               // NOTE: this ends the service call
                return Errors.missingObject(id, req, cb);
             }
 
@@ -128,20 +129,89 @@ module.exports = {
                username: req.username(),
             };
 
-            tryCreate(object, values, condDefaults, req)
-               .then((data) => {
-                  console.log(data);
-                  cb(null, data);
-               })
-               .catch((err) => {
-                  err = Errors.repackageError(err);
-                  req.log(err);
-                  cb(err);
-               });
+            var newRow = null;
+            async.series(
+               {
+                  // 1) Perform the Initial Create of the data
+                  create: (done) => {
+                     tryCreate(object, values, condDefaults, req)
+                        .then((data) => {
+                           newRow = data;
+
+                           // So let's end the service call here, then proceed
+                           // with the rest
+                           cb(null, data);
+
+                           // proceed with the process
+                           done(null, data);
+                        })
+                        .catch((err) => {
+                           if (err) {
+                              err = Errors.repackageError(err);
+                           }
+                           req.log(err);
+                           cb(err);
+                           // make sure this process ends too
+                           done(err);
+                        });
+                  },
+                  // 2) perform the lifecycle handlers.
+                  postHandlers: (done) => {
+                     // These can be performed in parallel
+                     async.parallel(
+                        {
+                           logger: (next) => {
+                              req.serviceRequest(
+                                 "log_manager.rowlog-create",
+                                 {
+                                    user: condDefaults.username,
+                                    data: newRow,
+                                    level: "insert",
+                                    row: newRow.uuid,
+                                    object: object.id,
+                                 },
+                                 (err) => {
+                                    next(err);
+                                 }
+                              );
+                           },
+                           trigger: (next) => {
+                              req.log("TODO: Trigger [object].create ");
+                              next();
+                           },
+                        },
+                        (err) => {
+                           ////
+                           //// errors here need to be alerted to our Developers:
+                           ////
+                           if (err) {
+                              req.notify("developer", err, {
+                                 context: "model-post::postHandlers",
+                                 jobID: req.jobID,
+                                 objectID: id,
+                                 condDefaults,
+                                 newRow,
+                              });
+                           }
+                           req.performance.log(["log_manager.rowlog-create"]);
+                           done(err);
+                        }
+                     );
+                  },
+               },
+               (/* err, results */) => {
+                  // errors at this point should have already been processed
+                  // if (err) {
+                  //    err = Errors.repackageError(err);
+                  //    req.log(err);
+                  //    cb(err);
+                  //    return;
+                  // }
+               }
+            );
          })
          .catch((err) => {
             req.log("ERROR:", err.toString());
-            console.log(err);
             cb(Errors.repackageError(err));
          });
    },

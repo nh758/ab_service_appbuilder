@@ -2,9 +2,11 @@
  * model-delete
  * our Request handler.
  */
-
+const async = require("async");
 const ABBootstrap = require("../utils/ABBootstrap");
 const Errors = require("../utils/Errors");
+const RetryFind = require("../utils/RetryFind.js");
+const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.js");
 
 module.exports = {
    /**
@@ -70,43 +72,113 @@ module.exports = {
             // {int}
             // The # of rows effected by our delete operation.
 
-            // We are deleting an item...but first fetch its current data
-            // so we can clean up any relations on the client side after the delete
-            findOldItem(AB, req, object, id, condDefaults)
-               .then((old) => {
-                  oldItem = old;
-
-                  // Now Delete the Item
-                  return object.model().delete(id);
-               })
-               .then((num) => {
-                  numRows = num;
-
-                  /*
-// Track Logging
-                  ABTrack.logDelete({
-                     objectId: object.id,
-                     rowId: id,
-                     username: condDefaults.username,
-                     data: oldItem
-                  });
-
-// Trigger process
-               var key = `${object.id}.deleted`;
-               ABProcess.trigger(key, oldItem[0])
-                  .then(() => {
-                     next();
-                  })
-                  .catch(next);
-*/
-               })
-               .then(() => {
-                  cb(null, { numRows });
-               })
-               .catch((err) => {
-                  req.logError("Error performing delete:", err);
-                  cb(err);
-               });
+            async.series(
+               {
+                  // 1) Perform the Initial Delete of the data
+                  delete: (done) => {
+                     // We are deleting an item...but first fetch its current data
+                     // so we can clean up any relations on the client side after the delete
+                     req.performance.mark("find.old");
+                     findOldItem(AB, req, object, id, condDefaults)
+                        .then((old) => {
+                           oldItem = old;
+                           req.performance.measure("find.old");
+                           req.performance.mark("delete");
+                           // Now Delete the Item
+                           return object.model().delete(id);
+                        })
+                        .then((num) => {
+                           numRows = num;
+                           req.performance.measure("delete");
+                           // End the API call here:
+                           cb(null, { numRows });
+                           done();
+                        })
+                        .catch((err) => {
+                           req.logError("Error performing delete:", err);
+                           cb(err);
+                           done(err);
+                        });
+                  },
+                  // 2) perform the lifecycle handlers.
+                  postHandlers: (done) => {
+                     // These can be performed in parallel
+                     async.parallel(
+                        {
+                           // each row action gets logged
+                           logger: (next) => {
+                              req.serviceRequest(
+                                 "log_manager.rowlog-create",
+                                 {
+                                    user: condDefaults.username,
+                                    data: oldItem,
+                                    level: "delete",
+                                    row: id,
+                                    object: object.id,
+                                 },
+                                 (err) => {
+                                    next(err);
+                                 }
+                              );
+                           },
+                           // update our Process.trigger events
+                           processTrigger: (next) => {
+                              req.log("TODO: Trigger [object].delete ");
+                              next();
+                           },
+                           // Alert our Clients of changed data:
+                           staleUpates: (next) => {
+                              req.performance.mark("stale.update");
+                              UpdateConnectedFields(
+                                 AB,
+                                 req,
+                                 object,
+                                 oldItem,
+                                 null,
+                                 condDefaults
+                              )
+                                 .then(() => {
+                                    req.performance.measure("stale.update");
+                                    next();
+                                 })
+                                 .catch((err) => {
+                                    next(err);
+                                 });
+                           },
+                        },
+                        (err) => {
+                           ////
+                           //// errors here need to be alerted to our Developers:
+                           ////
+                           if (err) {
+                              req.notify.developer(err, {
+                                 context: "model-delete::postHandlers",
+                                 jobID: req.jobID,
+                                 objectID: object.id,
+                                 condDefaults,
+                                 oldItem,
+                                 numRows,
+                              });
+                           }
+                           req.performance.log([
+                              "log_manager.rowlog-create",
+                              "stale.update",
+                           ]);
+                           done(err);
+                        }
+                     );
+                  },
+               },
+               (/* err, results */) => {
+                  // errors at this point should have already been processed
+                  // if (err) {
+                  //    err = Errors.repackageError(err);
+                  //    req.log(err);
+                  //    cb(err);
+                  //    return;
+                  // }
+               }
+            );
          })
          .catch((err) => {
             // Bootstrap Error
@@ -360,34 +432,39 @@ module.exports = {
    },
 };
 
+/**
+ * findOldItem()
+ * pull the existing entry from the DB before we perform the delete.
+ * @param {ABFactory} AB,
+ * @param {reqService} req
+ * @param {ABObject} object
+ * @param {string} id
+ * @param {json} condDefaults
+ * @return {Promise}
+ */
 function findOldItem(AB, req, object, id, condDefaults) {
-   return object
-      .model()
-      .findAll(
-         {
-            where: {
-               glue: "and",
-               rules: [
-                  {
-                     key: object.PK(),
-                     rule: "equals",
-                     value: id,
-                  },
-               ],
-            },
-            populate: true,
+   return RetryFind(
+      object,
+      {
+         where: {
+            glue: "and",
+            rules: [
+               {
+                  key: object.PK(),
+                  rule: "equals",
+                  value: id,
+               },
+            ],
          },
-         condDefaults
-      )
-      .then((result) => {
-         // we should return the single item, not an array.
-         if (result) {
-            return result[0];
-         }
-         return null;
-      });
-}
-
-function deleteItem(AB, req, object, id, condDefaults) {
-   return object.model().delete(id);
+         populate: true,
+      },
+      condDefaults,
+      req
+   ).then((result) => {
+      // we should return the single item, not an array.
+      if (result) {
+         return result[0];
+      }
+      return null;
+   });
 }
