@@ -105,6 +105,26 @@ module.exports = {
                      // These can be performed in parallel
                      async.parallel(
                         {
+                           // broadcast our .delete to all connected web clients
+                           broadcast: (next) => {
+                              req.performance.mark("broadcast");
+                              req.broadcast(
+                                 [
+                                    {
+                                       room: req.socketKey(object.id),
+                                       event: "ab.datacollection.delete",
+                                       data: {
+                                          objectId: object.id,
+                                          data: id,
+                                       },
+                                    },
+                                 ],
+                                 (err) => {
+                                    req.performance.measure("broadcast");
+                                    next(err);
+                                 }
+                              );
+                           },
                            // each row action gets logged
                            logger: (next) => {
                               req.serviceRequest(
@@ -153,7 +173,6 @@ module.exports = {
                            if (err) {
                               req.notify.developer(err, {
                                  context: "model-delete::postHandlers",
-                                 jobID: req.jobID,
                                  objectID: object.id,
                                  condDefaults,
                                  oldItem,
@@ -161,6 +180,7 @@ module.exports = {
                               });
                            }
                            req.performance.log([
+                              "broadcast",
                               "log_manager.rowlog-create",
                               "stale.update",
                            ]);

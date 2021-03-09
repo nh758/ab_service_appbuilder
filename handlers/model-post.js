@@ -5,6 +5,7 @@
 const async = require("async");
 const ABBootstrap = require("../utils/ABBootstrap");
 const Errors = require("../utils/Errors");
+const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.js");
 
 /**
  * tryCreate()
@@ -155,11 +156,33 @@ module.exports = {
                            done(err);
                         });
                   },
+
                   // 2) perform the lifecycle handlers.
                   postHandlers: (done) => {
                      // These can be performed in parallel
                      async.parallel(
                         {
+                           // broadcast our .create to all connected web clients
+                           broadcast: (next) => {
+                              req.performance.mark("broadcast");
+                              req.broadcast(
+                                 [
+                                    {
+                                       room: req.socketKey(object.id),
+                                       event: "ab.datacollection.create",
+                                       data: {
+                                          objectId: object.id,
+                                          data: newRow,
+                                       },
+                                    },
+                                 ],
+                                 (err) => {
+                                    req.performance.measure("broadcast");
+                                    next(err);
+                                 }
+                              );
+                           },
+                           // log the create for this new row of data
                            logger: (next) => {
                               req.serviceRequest(
                                  "log_manager.rowlog-create",
@@ -179,21 +202,47 @@ module.exports = {
                               req.log("TODO: Trigger [object].create ");
                               next();
                            },
+
+                           // Alert our Clients of changed data:
+                           // A newly created entry, might update the connected data in other
+                           // object values.  This will make sure those entries are pushed up
+                           // to the web clients.
+                           staleUpates: (next) => {
+                              req.performance.mark("stale.update");
+                              UpdateConnectedFields(
+                                 AB,
+                                 req,
+                                 object,
+                                 null,
+                                 newRow,
+                                 condDefaults
+                              )
+                                 .then(() => {
+                                    req.performance.measure("stale.update");
+                                    next();
+                                 })
+                                 .catch((err) => {
+                                    next(err);
+                                 });
+                           },
                         },
                         (err) => {
                            ////
                            //// errors here need to be alerted to our Developers:
                            ////
                            if (err) {
-                              req.notify("developer", err, {
+                              req.notify.developer(err, {
                                  context: "model-post::postHandlers",
-                                 jobID: req.jobID,
                                  objectID: id,
                                  condDefaults,
                                  newRow,
                               });
                            }
-                           req.performance.log(["log_manager.rowlog-create"]);
+                           req.performance.log([
+                              "broadcast",
+                              "log_manager.rowlog-create",
+                              "stale.update",
+                           ]);
                            done(err);
                         }
                      );

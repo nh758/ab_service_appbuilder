@@ -69,43 +69,6 @@ module.exports = {
             var id = req.param("ID");
             var values = req.param("values");
 
-            // updateData(AB, object, id, values, condDefaults, req)
-            //    .then((result) => {
-            /*
- // TODO: Process Triggers:
-   var key = `${object.id}.updated`;
-   return ABProcess.trigger(key, result)
-      .then(() => {
-         // updateConnectedFields(object, result);
-
-         // We want to broadcast the change from the server to the client so all datacollections can properly update
-         // Build a payload that tells us what was updated
-         var payload = {
-            objectId: object.id,
-            data: result,
-         };
-
-         // Broadcast the update
-         sails.sockets.broadcast(
-            object.id,
-            "ab.datacollection.update",
-            payload
-         );
-
-         resolve(result);
-      })
-      .catch((err) => {
-         return Promise.reject(err);
-      });
-*/
-
-            //    cb(null, result);
-            // })
-            // .catch((err) => {
-            //    req.logError("Error performing update:", err);
-            //    cb(err);
-            // });
-
             var oldItem = null;
             var newRow = null;
             async.series(
@@ -164,6 +127,26 @@ module.exports = {
                      // These can be performed in parallel
                      async.parallel(
                         {
+                           // broadcast our .update to all connected web clients
+                           broadcast: (next) => {
+                              req.performance.mark("broadcast");
+                              req.broadcast(
+                                 [
+                                    {
+                                       room: req.socketKey(object.id),
+                                       event: "ab.datacollection.update",
+                                       data: {
+                                          objectId: object.id,
+                                          data: newRow,
+                                       },
+                                    },
+                                 ],
+                                 (err) => {
+                                    req.performance.measure("broadcast");
+                                    next(err);
+                                 }
+                              );
+                           },
                            logger: (next) => {
                               req.serviceRequest(
                                  "log_manager.rowlog-create",
@@ -184,24 +167,24 @@ module.exports = {
                               next();
                            },
                            // Alert our Clients of changed data:
-                           staleUpates: (next) => {
-                              req.performance.mark("stale.update");
-                              UpdateConnectedFields(
-                                 AB,
-                                 req,
-                                 object,
-                                 oldItem,
-                                 newRow,
-                                 condDefaults
-                              )
-                                 .then(() => {
-                                    req.performance.measure("stale.update");
-                                    next();
-                                 })
-                                 .catch((err) => {
-                                    next(err);
-                                 });
-                           },
+                           // staleUpates: (next) => {
+                           //    req.performance.mark("stale.update");
+                           //    UpdateConnectedFields(
+                           //       AB,
+                           //       req,
+                           //       object,
+                           //       oldItem,
+                           //       newRow,
+                           //       condDefaults
+                           //    )
+                           //       .then(() => {
+                           //          req.performance.measure("stale.update");
+                           //          next();
+                           //       })
+                           //       .catch((err) => {
+                           //          next(err);
+                           //       });
+                           // },
                         },
                         (err) => {
                            ////
@@ -217,8 +200,9 @@ module.exports = {
                               });
                            }
                            req.performance.log([
+                              "broadcast",
                               "log_manager.rowlog-create",
-                              "stale.update",
+                              // "stale.update",
                            ]);
                            done(err);
                         }
