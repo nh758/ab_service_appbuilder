@@ -151,8 +151,8 @@ module.exports = {
                               req.serviceRequest(
                                  "log_manager.rowlog-create",
                                  {
-                                    user: condDefaults.username,
-                                    data: values,
+                                    username: condDefaults.username,
+                                    record: values,
                                     level: "update",
                                     row: id,
                                     object: object.id,

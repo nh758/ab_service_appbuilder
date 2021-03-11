@@ -90,9 +90,13 @@ module.exports = {
    inputValidation: {
       objectID: { string: { uuid: true }, required: true },
       cond: { object: true, required: true },
-      /*    "email": { string:{ email: { allowUnicode: true }}, required:true }   */
-      /*                -> NOTE: put .string  before .required                    */
-      /*    "param": { required: true } // NOTE: param Joi.any().required();      */
+      /* cond is in EXPANDED format:
+       * cond.where {obj}
+       * cond.sort
+       * cond.populate
+       * cond.offset
+       * cond.limit
+       */
    },
 
    /**
@@ -182,108 +186,5 @@ module.exports = {
             req.logError("ERROR:", err);
             cb(err);
          });
-
-      /*
-
-newPendingTransaction();
-      AppBuilder.routes
-         .verifyAndReturnObject(req, res)
-         .then(function(object) {
-            // verify that the request is from a socket not a normal HTTP
-            if (req.isSocket) {
-               // Subscribe socket to a room with the name of the object's ID
-               sails.sockets.join(req, object.id);
-            }
-
-            var where = req.options._where;
-            var whereCount = _.cloneDeep(req.options._where); // ABObject.populateFindConditions changes values of this object
-            var sort = req.options._sort;
-            var offset = req.options._offset;
-            var limit = req.options._limit;
-
-            var populate = req.options._populate;
-            if (populate == null) populate = true;
-
-            // promise for the total count. this was moved below the filters because webix will get caught in an infinte loop of queries if you don't pass the right count
-            var pCount = object.queryCount(
-               { where: whereCount, populate: false },
-               req.user.data
-            );
-
-            var query = object.queryFind(
-               {
-                  where: where,
-                  sort: sort,
-                  offset: offset,
-                  limit: limit,
-                  populate: populate
-               },
-               req.user.data
-            );
-
-            // TODO:: we need to refactor to remove Promise.all so we no longer have Promise within Promises.
-            Promise.all([pCount, query])
-               .then(function(queries) {
-                  Promise.all([queries[0], queries[1]])
-                     .then(function(values) {
-                        var result = {};
-                        var count = values[0].count;
-                        var rows = values[1];
-
-                        result.data = rows;
-
-                        // webix pagination format:
-                        result.total_count = count;
-                        result.pos = offset;
-
-                        result.offset = offset;
-                        result.limit = limit;
-
-                        if (offset + rows.length < count) {
-                           result.offset_next = offset + limit;
-                        }
-
-                        //// TODO: evaluate if we really need to do this:
-                        //// ?) do we have a data field that actually needs to post process it's data
-                        ////    before returning it to the client?
-
-                        // object.postGet(result.data)
-                        // .then(()=>{
-
-                        resolvePendingTransaction();
-                        if (res.header)
-                           res.header("Content-type", "application/json");
-
-                        res.send(result, 200);
-
-                        // })
-                     })
-                     .catch((err) => {
-                        resolvePendingTransaction();
-                        console.log(err);
-                        res.AD.error(err);
-                     });
-               })
-               .catch((err) => {
-                  resolvePendingTransaction();
-                  console.log(err);
-                  res.AD.error(err);
-               });
-         })
-         .catch((err) => {
-            resolvePendingTransaction();
-            ADCore.error.log(
-               "AppBuilder:ABModelController:find(): find() did not complete",
-               { error: err }
-            );
-            if (!err) {
-               err = new Error(
-                  "AppBuilder:ABModelController:find(): find() did not complete. No Error Provided."
-               );
-            }
-            res.AD.error(err, err.HTTPCode || 400);
-         });
-
-      */
    },
 };

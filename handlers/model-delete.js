@@ -130,8 +130,8 @@ module.exports = {
                               req.serviceRequest(
                                  "log_manager.rowlog-create",
                                  {
-                                    user: condDefaults.username,
-                                    data: oldItem,
+                                    username: condDefaults.username,
+                                    record: oldItem,
                                     level: "delete",
                                     row: id,
                                     object: object.id,
