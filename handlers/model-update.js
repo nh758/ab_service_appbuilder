@@ -191,7 +191,7 @@ module.exports = {
                            //// errors here need to be alerted to our Developers:
                            ////
                            if (err) {
-                              req.notify("developer", err, {
+                              req.notify.developer(err, {
                                  context: "model-update::postHandlers",
                                  jobID: req.jobID,
                                  objectID: object.id,
