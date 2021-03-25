@@ -3,7 +3,7 @@
  * our Request handler.
  */
 
-const ABBootstrap = require("../utils/ABBootstrap");
+const ABBootstrap = require("../AppBuilder/ABBootstrap");
 
 module.exports = {
    /**
@@ -95,30 +95,5 @@ module.exports = {
             req.log("ERROR:", err);
             cb(err);
          });
-
-      // access any Models you need
-      /*
-      var Model = req.model("Name");
-       */
-
-      /*
-       * perform action here.
-       *
-       * when job is finished then:
-      cb(null, { param: "value" });
-
-       * or if error then:
-      cb(err);
-
-       * example:
-      Model.find({ email })
-         .then((list) => {
-            cb(null, list);
-         })
-         .catch((err) => {
-            cb(err);
-         });
-
-       */
    },
 };

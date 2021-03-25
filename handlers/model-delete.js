@@ -3,7 +3,7 @@
  * our Request handler.
  */
 const async = require("async");
-const ABBootstrap = require("../utils/ABBootstrap");
+const ABBootstrap = require("../AppBuilder/ABBootstrap");
 const Errors = require("../utils/Errors");
 const RetryFind = require("../utils/RetryFind.js");
 const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.js");
@@ -143,8 +143,16 @@ module.exports = {
                            },
                            // update our Process.trigger events
                            processTrigger: (next) => {
-                              req.log("TODO: Trigger [object].delete ");
-                              next();
+                              req.serviceRequest(
+                                 "process_manager.trigger",
+                                 {
+                                    key: `${object.id}.deleted`,
+                                    data: newRow,
+                                 },
+                                 (err) => {
+                                    next(err);
+                                 }
+                              );
                            },
                            // Alert our Clients of changed data:
                            staleUpates: (next) => {

@@ -4,7 +4,7 @@
  * responsible for.
  */
 
-const ABBootstrap = require("../utils/ABBootstrap");
+const ABBootstrap = require("../AppBuilder/ABBootstrap");
 const Errors = require("../utils/Errors");
 
 /**

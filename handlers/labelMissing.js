@@ -2,8 +2,8 @@
  * labelMissing
  * our Request handler.
  */
-var sqlFindLabels = require("../utils/findLabels.js");
-var sqlFindLanguages = require("../utils/findLanguages.js");
+var sqlFindLabels = require("../queries/findLabels.js");
+var sqlFindLanguages = require("../AppBuilder/queries/findLanguages.js");
 
 const fs = require("fs");
 const path = require("path");
@@ -39,10 +39,7 @@ module.exports = {
     * }
     */
    inputValidation: {
-      labels: {
-         string: true,
-         required: true,
-      },
+      labels: { array: true, required: true },
    },
 
    /**

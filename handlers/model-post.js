@@ -3,7 +3,7 @@
  * our Request handler.
  */
 const async = require("async");
-const ABBootstrap = require("../utils/ABBootstrap");
+const ABBootstrap = require("../AppBuilder/ABBootstrap");
 const Errors = require("../utils/Errors");
 const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.js");
 
@@ -125,10 +125,7 @@ module.exports = {
                }
             });
 
-            var condDefaults = {
-               languageCode: req.languageCode(),
-               username: req.username(),
-            };
+            var condDefaults = req.userDefaults();
 
             var newRow = null;
             async.series(
@@ -199,8 +196,16 @@ module.exports = {
                               );
                            },
                            trigger: (next) => {
-                              req.log("TODO: Trigger [object].create ");
-                              next();
+                              req.serviceRequest(
+                                 "process_manager.trigger",
+                                 {
+                                    key: `${object.id}.added`,
+                                    data: newRow,
+                                 },
+                                 (err) => {
+                                    next(err);
+                                 }
+                              );
                            },
 
                            // Alert our Clients of changed data:
