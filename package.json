@@ -11,6 +11,7 @@
     "cote": "^1.0.2",
     "knex": "^0.95.2",
     "lodash": "^4.17.21",
+    "moment": "^2.29.1",
     "mysql": "^2.18.1",
     "objection": "^2.2.14",
     "serialize-error": "^8.0.1"
