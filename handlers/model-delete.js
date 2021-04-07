@@ -147,7 +147,7 @@ module.exports = {
                                  "process_manager.trigger",
                                  {
                                     key: `${object.id}.deleted`,
-                                    data: newRow,
+                                    data: oldItem,
                                  },
                                  (err) => {
                                     next(err);
