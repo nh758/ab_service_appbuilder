@@ -100,7 +100,16 @@ module.exports = {
                            oldItem = result;
                            done();
                         })
-                        .catch(done);
+                        .catch((err) => {
+                           req.notify.developer(err, {
+                              context:
+                                 "Service:appbuilder.model-update: finding old entry:",
+                              req,
+                              id,
+                              // condDefaults,
+                           });
+                           done(err);
+                        });
                   },
 
                   // 2) Perform the Initial Update of the data
@@ -233,7 +242,11 @@ module.exports = {
             );
          })
          .catch((err) => {
-            req.logError("ERROR:", err);
+            req.notify.developer(err, {
+               context:
+                  "Service:appbuilder.model-update: Error initializing ABFactory",
+               req,
+            });
             cb(err);
          });
    },

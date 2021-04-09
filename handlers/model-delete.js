@@ -209,8 +209,11 @@ module.exports = {
             );
          })
          .catch((err) => {
-            // Bootstrap Error
-            req.logError("ERROR:", err);
+            req.notify.developer(err, {
+               context:
+                  "Service:appbuilder.model-delete: Error initializing ABFactory",
+               req,
+            });
             cb(err);
          });
 

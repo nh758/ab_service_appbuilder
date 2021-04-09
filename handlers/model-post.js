@@ -147,7 +147,13 @@ module.exports = {
                            if (err) {
                               err = Errors.repackageError(err);
                            }
-                           req.log(err);
+                           req.notify.developer(err, {
+                              context:
+                                 "Service:appbuilder.model-post: Error creating entry",
+                              req,
+                              values,
+                              condDefaults,
+                           });
                            cb(err);
                            // make sure this process ends too
                            done(err);
@@ -265,7 +271,11 @@ module.exports = {
             );
          })
          .catch((err) => {
-            req.log("ERROR:", err.toString());
+            req.notify.developer(err, {
+               context:
+                  "Service:appbuilder.model-post: Error initializing ABFactory",
+               req,
+            });
             cb(Errors.repackageError(err));
          });
    },

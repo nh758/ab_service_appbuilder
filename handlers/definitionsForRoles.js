@@ -92,7 +92,11 @@ module.exports = {
             cb(null, definitions);
          })
          .catch((err) => {
-            req.log("ERROR:", err);
+            req.notify.developer(err, {
+               context:
+                  "Service:appbuilder.definitionsForRoles: Error initializing ABFactory",
+               req,
+            });
             cb(err);
          });
    },

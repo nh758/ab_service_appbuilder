@@ -173,17 +173,32 @@ module.exports = {
                         cb(null, result);
                      })
                      .catch((err) => {
-                        req.logError("IN tryFind().catch() handler:", err);
+                        req.notify.developer(err, {
+                           context:
+                              "Service:appbuilder.model-get: IN tryFind().catch() handler:",
+                           req,
+                           cond,
+                           condDefaults,
+                        });
                         cb(err);
                      });
                })
                .catch((err) => {
-                  req.logError("ERROR reducing conditions:", err);
+                  req.notify.developer(err, {
+                     context:
+                        "Service:appbuilder.model-get: ERROR reducing conditions:",
+                     req,
+                     cond,
+                  });
                   cb(err);
                });
          })
          .catch((err) => {
-            req.logError("ERROR:", err);
+            req.notify.developer(err, {
+               context:
+                  "Service:appbuilder.model-get: Error initializing ABFactory",
+               req,
+            });
             cb(err);
          });
    },
