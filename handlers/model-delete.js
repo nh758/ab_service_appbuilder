@@ -79,13 +79,25 @@ module.exports = {
                      // We are deleting an item...but first fetch its current data
                      // so we can clean up any relations on the client side after the delete
                      req.performance.mark("find.old");
-                     findOldItem(AB, req, object, id, condDefaults)
+                     // findOldItem(AB, req, object, id, condDefaults)
+                     req.retry(() =>
+                        object.model().find(
+                           {
+                              where: {
+                                 uuid: id,
+                              },
+                              populate: true,
+                           },
+                           // condDefaults, // <-- .find() doesn't take
+                           req
+                        )
+                     )
                         .then((old) => {
-                           oldItem = old;
+                           oldItem = old ? old[0] : null;
                            req.performance.measure("find.old");
                            req.performance.mark("delete");
                            // Now Delete the Item
-                           return object.model().delete(id);
+                           return req.retry(() => object.model().delete(id));
                         })
                         .then((num) => {
                            numRows = num;
@@ -189,6 +201,7 @@ module.exports = {
                            }
                            req.performance.log([
                               "broadcast",
+                              "process_manager.trigger",
                               "log_manager.rowlog-create",
                               "stale.update",
                            ]);

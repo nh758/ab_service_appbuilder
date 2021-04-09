@@ -28,41 +28,41 @@ const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.j
  * @return {Promise}
  *       .resolve() with the {data} entries from the findAll();
  */
-function tryCreate(
-   object,
-   values,
-   condDefaults,
-   req,
-   retry = 0,
-   lastError = null
-) {
-   // prevent too many retries
-   if (retry >= 3) {
-      req.log("Too Many Retries ... failing.");
-      if (lastError) {
-         throw lastError;
-      } else {
-         throw new Error("Too Many failed Retries.");
-      }
-      // return;
-   }
+// function tryCreate(
+//    object,
+//    values,
+//    condDefaults,
+//    req,
+//    retry = 0,
+//    lastError = null
+// ) {
+//    // prevent too many retries
+//    if (retry >= 3) {
+//       req.log("Too Many Retries ... failing.");
+//       if (lastError) {
+//          throw lastError;
+//       } else {
+//          throw new Error("Too Many failed Retries.");
+//       }
+//       // return;
+//    }
 
-   return object
-      .model()
-      .create(values, null, condDefaults, req)
-      .catch((err) => {
-         console.log("IN tryCreate().object.create().catch() handler:");
-         console.error(err);
+//    return object
+//       .model()
+//       .create(values, null, condDefaults, req)
+//       .catch((err) => {
+//          console.log("IN tryCreate().object.create().catch() handler:");
+//          console.error(err);
 
-         if (Errors.isRetryError(err.code)) {
-            req.log(`LOOKS LIKE WE GOT A ${err.code}! ... trying again:`);
-            return tryCreate(object, values, condDefaults, req, retry + 1, err);
-         }
+//          if (Errors.isRetryError(err.code)) {
+//             req.log(`LOOKS LIKE WE GOT A ${err.code}! ... trying again:`);
+//             return tryCreate(object, values, condDefaults, req, retry + 1, err);
+//          }
 
-         // if we get here, this isn't a RETRY instance, so propogate the error
-         throw err;
-      });
-}
+//          // if we get here, this isn't a RETRY instance, so propogate the error
+//          throw err;
+//       });
+// }
 
 module.exports = {
    /**
@@ -132,7 +132,10 @@ module.exports = {
                {
                   // 1) Perform the Initial Create of the data
                   create: (done) => {
-                     tryCreate(object, values, condDefaults, req)
+                     // tryCreate(object, values, condDefaults, req)
+                     req.retry(() =>
+                        object.model().create(values, null, condDefaults, req)
+                     )
                         .then((data) => {
                            newRow = data;
 
@@ -251,6 +254,7 @@ module.exports = {
                            }
                            req.performance.log([
                               "broadcast",
+                              "process_manager.trigger",
                               "log_manager.rowlog-create",
                               "stale.update",
                            ]);

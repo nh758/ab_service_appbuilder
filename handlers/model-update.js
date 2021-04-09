@@ -77,23 +77,28 @@ module.exports = {
                   // entries that need to be updated.
                   findOld: (done) => {
                      req.performance.mark("find.old");
-                     RetryFind(
-                        object,
-                        {
-                           where: {
-                              glue: "and",
-                              rules: [
-                                 {
-                                    key: object.PK(),
-                                    rule: "equals",
-                                    value: id,
-                                 },
-                              ],
-                           },
-                           populate: true,
-                        },
-                        condDefaults,
-                        req
+                     // RetryFind(
+                     //    object,
+                     //    {
+                     //       where: {
+                     //          glue: "and",
+                     //          rules: [
+                     //             {
+                     //                key: object.PK(),
+                     //                rule: "equals",
+                     //                value: id,
+                     //             },
+                     //          ],
+                     //       },
+                     //       populate: true,
+                     //    },
+                     //    condDefaults,
+                     //    req
+                     // )
+                     req.retry(() =>
+                        object
+                           .model()
+                           .find({ where: { uuid: id }, populate: true }, req)
                      )
                         .then((result) => {
                            req.performance.measure("find.old");
@@ -223,6 +228,7 @@ module.exports = {
                            req.performance.log([
                               "broadcast",
                               "log_manager.rowlog-create",
+                              "process_manager.trigger",
                               // "stale.update",
                            ]);
                            done(err);
@@ -326,7 +332,8 @@ function updateData(AB, object, id, values, userData, req) {
 
    // Do Knex update data tasks
    return new Promise((resolve, reject) => {
-      retryUpdate(object, id, values, userData, req)
+      // retryUpdate(object, id, values, userData, req)
+      req.retry(() => object.model().update(id, values, userData))
          .then((fullEntry) => {
             resolve(fullEntry);
          })
@@ -336,6 +343,7 @@ function updateData(AB, object, id, values, userData, req) {
    });
 }
 
+/*
 function retryUpdate(
    object,
    id,
@@ -376,7 +384,7 @@ function retryUpdate(
          throw err;
       });
 }
-
+*/
 /*
 function old_updateData(AB, object, id, values, userData, req) {
    // return the parameters from the input params that relate to this object
