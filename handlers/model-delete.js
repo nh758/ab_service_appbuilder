@@ -4,6 +4,7 @@
  */
 const async = require("async");
 const ABBootstrap = require("../AppBuilder/ABBootstrap");
+const cleanReturnData = require("../AppBuilder/utils/cleanReturnData");
 const Errors = require("../utils/Errors");
 const RetryFind = require("../utils/RetryFind.js");
 const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.js");
@@ -95,9 +96,15 @@ module.exports = {
                         .then((old) => {
                            oldItem = old ? old[0] : null;
                            req.performance.measure("find.old");
-                           req.performance.mark("delete");
-                           // Now Delete the Item
-                           return req.retry(() => object.model().delete(id));
+                           return cleanReturnData(AB, object, [oldItem]).then(
+                              () => {
+                                 req.performance.mark("delete");
+                                 // Now Delete the Item
+                                 return req.retry(() =>
+                                    object.model().delete(id)
+                                 );
+                              }
+                           );
                         })
                         .then((num) => {
                            numRows = num;

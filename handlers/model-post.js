@@ -4,6 +4,7 @@
  */
 const async = require("async");
 const ABBootstrap = require("../AppBuilder/ABBootstrap");
+const cleanReturnData = require("../AppBuilder/utils/cleanReturnData");
 const Errors = require("../utils/Errors");
 const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.js");
 
@@ -137,14 +138,16 @@ module.exports = {
                         object.model().create(values, null, condDefaults, req)
                      )
                         .then((data) => {
-                           newRow = data;
+                           cleanReturnData(AB, object, [data]).then(() => {
+                              newRow = data;
 
-                           // So let's end the service call here, then proceed
-                           // with the rest
-                           cb(null, data);
+                              // So let's end the service call here, then proceed
+                              // with the rest
+                              cb(null, data);
 
-                           // proceed with the process
-                           done(null, data);
+                              // proceed with the process
+                              done(null, data);
+                           });
                         })
                         .catch((err) => {
                            if (err) {

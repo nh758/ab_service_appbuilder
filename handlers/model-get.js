@@ -5,6 +5,7 @@
  */
 
 const ABBootstrap = require("../AppBuilder/ABBootstrap");
+const cleanReturnData = require("../AppBuilder/utils/cleanReturnData");
 const Errors = require("../utils/Errors");
 
 /**
@@ -170,7 +171,11 @@ module.exports = {
                         ) {
                            result.offset_next = result.offset + result.limit;
                         }
-                        cb(null, result);
+
+                        // clear any .password / .salt from SiteUser objects
+                        cleanReturnData(AB, object, result.data).then(() => {
+                           cb(null, result);
+                        });
                      })
                      .catch((err) => {
                         req.notify.developer(err, {

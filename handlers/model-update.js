@@ -5,6 +5,7 @@
  */
 const async = require("async");
 const ABBootstrap = require("../AppBuilder/ABBootstrap");
+const cleanReturnData = require("../AppBuilder/utils/cleanReturnData");
 const Errors = require("../utils/Errors");
 const RetryFind = require("../utils/RetryFind");
 const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.js");
@@ -122,13 +123,15 @@ module.exports = {
                      req.performance.mark("update");
                      updateData(AB, object, id, values, condDefaults, req)
                         .then((result) => {
-                           newRow = result;
                            req.performance.measure("update");
-                           // end the api call here
-                           cb(null, result);
+                           cleanReturnData(AB, object, [result]).then(() => {
+                              newRow = result;
+                              // end the api call here
+                              cb(null, result);
 
-                           // proceed with the process
-                           done(null, result);
+                              // proceed with the process
+                              done(null, result);
+                           });
                         })
                         .catch((err) => {
                            req.logError("Error performing update:", err);
