@@ -9,6 +9,9 @@ const fs = require("fs");
 const path = require("path");
 
 var LabelJSON = null;
+// {obj} hash of { lang.code : { key: Label }}
+// of our previous v1 labels.  This is just here during the
+// transition, so we can reuse the existing labels from v1.
 
 module.exports = {
    /**
@@ -77,6 +80,10 @@ module.exports = {
 
       Promise.all(allInits)
 
+         /*
+          * NOTE: only uncomment on Johnny's setup
+          * this will be removed after official transition to v2
+
          // NOTE: we can remove this step after fully transitioning to our
          // v2 Label format.
          .then(() => {
@@ -128,6 +135,7 @@ module.exports = {
                });
             });
          })
+*/
          .then(() => {
             //
             // Now sort Existing labels by languages
@@ -159,9 +167,10 @@ module.exports = {
                   }
                   var currLabel = currLabelHash[code][l.key];
                   if (!currLabel) {
-                     currLabel = LabelJSON[code]
-                        ? LabelJSON[code][l.key]
-                        : null;
+                     currLabel =
+                        LabelJSON && LabelJSON[code]
+                           ? LabelJSON[code][l.key]
+                           : null;
                      // if none of that resulted in a working label,
                      // default to "[code] label"
                      currLabel = currLabel || `[${code}] ${t}`;
