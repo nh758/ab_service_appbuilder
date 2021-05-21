@@ -243,16 +243,23 @@ module.exports = {
                      .then((contents) => {
                         // to prevent adding duplicates:
                         // create a hash of existing labels:
-                        var lcontents = contents.replace(
+                        var removeThese = [
+                           "/* eslint-disable */",
                            "   /* key : label */",
-                           ""
-                        );
+                        ];
+                        var lcontents = contents;
+                        removeThese.forEach((r) => {
+                           lcontents = lcontents.replace(r, "");
+                        });
+
                         lcontents = lcontents.replace("module.exports = ", "");
                         lcontents = lcontents.replace(/,*\n};/, "}");
                         var lHash = {};
                         try {
                            lHash = JSON.parse(lcontents);
                         } catch (e) {
+                           console.error("lcontents failed to .parse()");
+                           console.error(lcontents);
                            console.error(e);
                         }
 

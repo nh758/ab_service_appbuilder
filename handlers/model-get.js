@@ -139,51 +139,64 @@ module.exports = {
 
             // 2) make sure any given conditions also include the User's
             // scopes.
-            // TODO:
-            // object.includeScopes(cond, condDefaults) .then()
-
-            // 3) now Take all the conditions and reduce them to their final
-            // useable form: no complex in_query, contains_user, etc...
             object
-               .reduceConditions(cond.where, condDefaults)
+               .includeScopes(cond, condDefaults, req)
                .then(() => {
-                  req.log(`reduced where: ${JSON.stringify(cond.where)}`);
-                  // 4) Perform the Find Operations
-                  tryFind(object, cond, condDefaults, req)
-                     .then((results) => {
-                        // {array} results
-                        // results[0] : {array} the results of the .findAll()
-                        // results[1] : {int} the results of the .findCount()
+                  // 3) now Take all the conditions and reduce them to their final
+                  // useable form: no complex in_query, contains_user, etc...
+                  object
+                     .reduceConditions(cond.where, condDefaults)
+                     .then(() => {
+                        req.log(`reduced where: ${JSON.stringify(cond.where)}`);
+                        // 4) Perform the Find Operations
+                        tryFind(object, cond, condDefaults, req)
+                           .then((results) => {
+                              // {array} results
+                              // results[0] : {array} the results of the .findAll()
+                              // results[1] : {int} the results of the .findCount()
 
-                        var result = {};
-                        result.data = results[0];
+                              var result = {};
+                              result.data = results[0];
 
-                        // webix pagination format:
-                        result.total_count = results[1];
-                        result.pos = cond.offset || 0;
+                              // webix pagination format:
+                              result.total_count = results[1];
+                              result.pos = cond.offset || 0;
 
-                        result.offset = cond.offset || 0;
-                        result.limit = cond.limit || 0;
+                              result.offset = cond.offset || 0;
+                              result.limit = cond.limit || 0;
 
-                        if (
-                           result.offset + result.data.length <
-                           result.total_count
-                        ) {
-                           result.offset_next = result.offset + result.limit;
-                        }
+                              if (
+                                 result.offset + result.data.length <
+                                 result.total_count
+                              ) {
+                                 result.offset_next =
+                                    result.offset + result.limit;
+                              }
 
-                        // clear any .password / .salt from SiteUser objects
-                        cleanReturnData(AB, object, result.data).then(() => {
-                           cb(null, result);
-                        });
+                              // clear any .password / .salt from SiteUser objects
+                              cleanReturnData(AB, object, result.data).then(
+                                 () => {
+                                    cb(null, result);
+                                 }
+                              );
+                           })
+                           .catch((err) => {
+                              req.notify.developer(err, {
+                                 context:
+                                    "Service:appbuilder.model-get: IN tryFind().catch() handler:",
+                                 req,
+                                 cond,
+                                 condDefaults,
+                              });
+                              cb(err);
+                           });
                      })
                      .catch((err) => {
                         req.notify.developer(err, {
                            context:
-                              "Service:appbuilder.model-get: IN tryFind().catch() handler:",
+                              "Service:appbuilder.model-get: ERROR reducing conditions:",
                            req,
                            cond,
-                           condDefaults,
                         });
                         cb(err);
                      });
@@ -191,7 +204,7 @@ module.exports = {
                .catch((err) => {
                   req.notify.developer(err, {
                      context:
-                        "Service:appbuilder.model-get: ERROR reducing conditions:",
+                        "Service:appbuilder.model-get: ERROR including scopes:",
                      req,
                      cond,
                   });
