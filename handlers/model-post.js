@@ -131,6 +131,32 @@ module.exports = {
             var newRow = null;
             async.series(
                {
+                  // 0) Special Case: if adding a User, need to gather
+                  //    password & salt
+                  special: (done) => {
+                     if (object.id != AB.objectUser().id) {
+                        return done();
+                     }
+
+                     // if SiteUser object then go gather the password and
+                     // salt:
+                     req.serviceRequest(
+                        "user_manager.new-user-password",
+                        {
+                           password: values.password,
+                        },
+                        (err, results) => {
+                           if (err) {
+                              return done(err);
+                           }
+                           Object.keys(results).forEach((k) => {
+                              values[k] = results[k];
+                           });
+                           done();
+                        }
+                     );
+                  },
+
                   // 1) Perform the Initial Create of the data
                   create: (done) => {
                      // tryCreate(object, values, condDefaults, req)
