@@ -21,27 +21,23 @@ const Errors = require("../utils/Errors");
  *       our findAll() requires some default info about the USER
  * @param {ABUtil.request} req
  *       the request instance that handles requests for the current tenant
- * @param {int} retry
- *       a count of how many retry attempts.
- * @param {Error} lastError
- *       the last Error reported in trying to make the findAll().
- *       this is what is passed on if we have too many retries.
  * @return {Promise}
  *       .resolve() with the [{data}] entries from the findAll();
  */
-function tryFind(object, cond, condDefaults, req, retry = 0, lastError = null) {
-   // prevent too many retries
-   if (retry >= 3) {
-      req.log("Too Many Retries ... failing.");
-      if (lastError) {
-         throw lastError;
-      } else {
-         throw new Error("Too Many failed Retries.");
-      }
-      return;
-   }
+function tryFind(object, cond, condDefaults, req) {
+   var countCond = object.AB.cloneDeep(cond);
+   // {obj}
+   // a cloned copy of our cond param, so the findAll() and .findCount()
+   // don't mess with the conditions for each other.
 
-   var pFindAll = object.model().findAll(cond, condDefaults, req);
+   // NOTE: we wrap all query attempts in req.retry() to detect
+   // timeouts and connection errors and then retry the operation.
+
+   var pFindAll = req.retry(() =>
+      object.model().findAll(cond, condDefaults, req)
+   );
+   // {Promise} pFindAll
+   // the execution chain returning the DB result of the findAll()
 
    var pCount = Promise.resolve().then(() => {
       // if no cond.limit was set, then return the length pFindAll
@@ -49,19 +45,17 @@ function tryFind(object, cond, condDefaults, req, retry = 0, lastError = null) {
          // return the length of pFindAll
          return pFindAll.then((results) => results.length);
       } else {
-         return object.model().findCount(cond, condDefaults, req);
+         // do a separate lookup
+         return req.retry(() =>
+            object.model().findCount(countCond, condDefaults, req)
+         );
       }
    });
+   // {Promise} pCount
+   // the execution chain returning the {int} result of how many
+   // total rows match this condition.
 
-   return Promise.all([pFindAll, pCount]).catch((err) => {
-      if (Errors.isRetryError(err.code)) {
-         req.log(`LOOKS LIKE WE GOT A ${err.code}! ... trying again:`);
-         return tryFind(object, cond, condDefaults, req, retry + 1, err);
-      }
-
-      // if we get here, this isn't a RESET, so propogate the error
-      throw err;
-   });
+   return Promise.all([pFindAll, pCount]);
 }
 
 module.exports = {
@@ -73,20 +67,6 @@ module.exports = {
    /**
     * inputValidation
     * define the expected inputs to this service handler:
-    * Format:
-    * "parameterName" : {
-    *    {joi.fn}   : {bool},  // performs: joi.{fn}();
-    *    {joi.fn}   : {
-    *       {joi.fn1} : true,   // performs: joi.{fn}().{fn1}();
-    *       {joi.fn2} : { options } // performs: joi.{fn}().{fn2}({options})
-    *    }
-    *    // examples:
-    *    "required" : {bool},  // default = false
-    *
-    *    // custom:
-    *        "validation" : {fn} a function(value, {allValues hash}) that
-    *                       returns { error:{null || {new Error("Error Message")} }, value: {normalize(value)}}
-    * }
     */
    inputValidation: {
       objectID: { string: { uuid: true }, required: true },
