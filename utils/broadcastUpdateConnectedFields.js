@@ -77,24 +77,26 @@ module.exports = function updateConnectedFields(
 
       // Now Perform Our Lookup to get the updated information
       lookups.push(
-         RetryFind(
-            field.object,
-            {
-               where: {
-                  glue: "and",
-                  rules: [
-                     {
-                        key: PK,
-                        rule: "in",
-                        value: IDs,
+         req
+            .retry(() =>
+               field.object.model().findAll(
+                  {
+                     where: {
+                        glue: "and",
+                        rules: [
+                           {
+                              key: PK,
+                              rule: "in",
+                              value: IDs,
+                           },
+                        ],
                      },
-                  ],
-               },
-               populate: true,
-            },
-            condDefaults,
-            req
-         )
+                     populate: true,
+                  },
+                  condDefaults,
+                  req
+               )
+            )
             .then((data) => {
                (data || []).forEach((d) => {
                   packets.push({
@@ -109,7 +111,7 @@ module.exports = function updateConnectedFields(
             })
             .catch((err) => {
                req.notify.developer(err, {
-                  context: "model-delete::updateConnectedFields",
+                  context: "::updateConnectedFields",
                   object: field.object.id,
                   ids: IDs,
                   condDefaults,
@@ -136,7 +138,4 @@ module.exports = function updateConnectedFields(
          });
       });
    });
-   // .catch((err)=>{
-   //    next(err);
-   // });
 };

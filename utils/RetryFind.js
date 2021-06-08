@@ -19,6 +19,12 @@ module.exports = function retryFind(
       }
    }
 
+   console.error(
+      new Error(
+         "DEPRECIATED: RetryFind() is depreciated.  Use req.retry() instead."
+      )
+   );
+
    return object
       .model()
       .findAll(cond, condDefaults, req)
