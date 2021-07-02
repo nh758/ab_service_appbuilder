@@ -1,17 +1,17 @@
 ##
-## digiserve/ab-appbuilder:develop
+## digiserve/ab-appbuilder:master
 ##
 ## This is our microservice for our AppBuilder CRUD operations.
 ##
 ## Docker Commands:
 ## ---------------
-## $ docker build -t digiserve/ab-appbuilder:develop .
-## $ docker push digiserve/ab-appbuilder:develop
+## $ docker build -t digiserve/ab-appbuilder:master .
+## $ docker push digiserve/ab-appbuilder:master
 ##
 
-FROM digiserve/service-cli:develop
+FROM digiserve/service-cli:master
 
-RUN git clone --recursive https://github.com/appdevdesigns/ab_service_appbuilder.git app && cd app && git checkout develop && git submodule update --recursive && npm install
+RUN git clone --recursive https://github.com/appdevdesigns/ab_service_appbuilder.git app && cd app && npm install
 
 WORKDIR /app
 
