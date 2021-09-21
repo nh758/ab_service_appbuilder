@@ -77,6 +77,7 @@ module.exports = {
                   // return only a minimal set of user data
                   configMeta.users = (users || []).map((u) => {
                      return {
+                        uuid: u.uuid,
                         isActive: u.isActive,
                         username: u.username,
                         languageCode: u.languageCode,
