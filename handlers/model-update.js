@@ -52,7 +52,7 @@ module.exports = {
     *        a node style callback(err, results) to send data when job is finished
     */
    fn: function handler(req, cb) {
-      req.log("appbuilder.model-get:");
+      req.log("appbuilder.model-update:");
 
       ABBootstrap.init(req)
          .then((AB) => {
