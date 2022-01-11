@@ -102,6 +102,7 @@ module.exports = {
             if (!object) {
                return Errors.missingObject(id, req, cb);
             }
+            req.log(`ABObject: ${object.label || object.name}`);
 
             var cond = req.param("cond");
 
