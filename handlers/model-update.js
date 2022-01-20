@@ -12,6 +12,11 @@ const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.j
 
 const { ref /*, raw  */ } = require("objection");
 
+const IgnoredUserFields = ["password", "salt", "lastLogin"];
+// {array}
+// A list of fields on the SiteUser object that should not be updated by this
+// service if they don't have a valid value.
+
 module.exports = {
    /**
     * Key: the cote message key we respond to.
@@ -69,6 +74,16 @@ module.exports = {
 
             var id = req.param("ID");
             var values = req.param("values");
+
+            // Special Case:  SiteUser
+            // Remove any special fields if they don't have values set.
+            if (objID == AB.objectUser().id) {
+               IgnoredUserFields.forEach((k) => {
+                  if (!values[k] || values[k] == "NULL") {
+                     delete values[k];
+                  }
+               });
+            }
 
             var oldItem = null;
             var newRow = null;
