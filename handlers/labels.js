@@ -10,13 +10,20 @@ var Labels = require("../AppBuilder/core/labels/labels");
 // The base hash divides the labels into their {language_code} parts,
 // and returns those when requested.
 
-function getLabels(langCode) {
+function getLabels(req, langCode) {
    return new Promise((resolve, reject) => {
       if (!Labels[langCode]) {
          var error = new Error(
             `No label definitions for language_code=[${langCode}]`
          );
-         reject(error);
+         // TODO: decide if we want to keep responding with EN
+         // reject(error);
+         req.notify.developer(error, {
+            context: "getLabels()",
+            _serviceHandler: "appbuilder.labels",
+            langCode,
+         });
+         resolve(Labels["en"]);
          return;
       }
       resolve(Labels[langCode] || {});
@@ -65,7 +72,7 @@ module.exports = {
 
       var langCode = req.param("languageCode");
 
-      getLabels(langCode)
+      getLabels(req, langCode)
          .then((labels) => {
             cb(null, labels);
          })
