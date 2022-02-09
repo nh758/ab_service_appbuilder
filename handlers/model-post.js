@@ -140,21 +140,25 @@ module.exports = {
 
                      // if SiteUser object then go gather the password and
                      // salt:
-                     req.serviceRequest(
-                        "user_manager.new-user-password",
-                        {
-                           password: values.password,
-                        },
-                        (err, results) => {
-                           if (err) {
-                              return done(err);
+                     if (values.password?.length) {
+                        req.serviceRequest(
+                           "user_manager.new-user-password",
+                           {
+                              password: values.password,
+                           },
+                           (err, results) => {
+                              if (err) {
+                                 return done(err);
+                              }
+                              Object.keys(results).forEach((k) => {
+                                 values[k] = results[k];
+                              });
+                              done();
                            }
-                           Object.keys(results).forEach((k) => {
-                              values[k] = results[k];
-                           });
-                           done();
-                        }
-                     );
+                        );
+                     } else {
+                        done();
+                     }
                   },
 
                   // 1) Perform the Initial Create of the data
