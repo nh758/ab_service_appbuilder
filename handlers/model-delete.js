@@ -80,7 +80,6 @@ module.exports = {
                      // We are deleting an item...but first fetch its current data
                      // so we can clean up any relations on the client side after the delete
                      req.performance.mark("find.old");
-                     // findOldItem(AB, req, object, id, condDefaults)
                      req.retry(() =>
                         object.model().find(
                            {
@@ -482,40 +481,3 @@ module.exports = {
 */
    },
 };
-
-/**
- * findOldItem()
- * pull the existing entry from the DB before we perform the delete.
- * @param {ABFactory} AB,
- * @param {reqService} req
- * @param {ABObject} object
- * @param {string} id
- * @param {json} condDefaults
- * @return {Promise}
- */
-function findOldItem(AB, req, object, id, condDefaults) {
-   return RetryFind(
-      object,
-      {
-         where: {
-            glue: "and",
-            rules: [
-               {
-                  key: object.PK(),
-                  rule: "equals",
-                  value: id,
-               },
-            ],
-         },
-         populate: true,
-      },
-      condDefaults,
-      req
-   ).then((result) => {
-      // we should return the single item, not an array.
-      if (result) {
-         return result[0];
-      }
-      return null;
-   });
-}

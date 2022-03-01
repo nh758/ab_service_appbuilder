@@ -89,6 +89,34 @@ module.exports = {
             var newRow = null;
             async.series(
                {
+                  // 0) SPECIAL CASE: if SiteUser and updating Password,
+                  //    go gather password + salt
+                  salty: (done) => {
+                     if (objID !== AB.objectUser().id) {
+                        return done();
+                     }
+
+                     if (values.password?.length) {
+                        req.serviceRequest(
+                           "user_manager.new-user-password",
+                           {
+                              password: values.password,
+                           },
+                           (err, results) => {
+                              if (err) {
+                                 return done(err);
+                              }
+                              Object.keys(results).forEach((k) => {
+                                 values[k] = results[k];
+                              });
+                              done();
+                           }
+                        );
+                     } else {
+                        done();
+                     }
+                  },
+
                   // 1) pull the old Item so we can compare updated connected
                   // entries that need to be updated.
                   findOld: (done) => {

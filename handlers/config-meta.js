@@ -56,23 +56,21 @@ module.exports = {
       ABBootstrap.init(req)
          .then((AB) => {
             var configMeta = {};
-            var pRoles = AB.objectRole()
-               .model()
-               .find({}, req)
+            var pRoles = req
+               .retry(() => AB.objectRole().model().find({}, req))
                .then((roles) => {
                   configMeta.roles = roles || [];
                });
 
-            var pScopes = AB.objectScope()
-               .model()
-               .find({}, req)
+            var pScopes = req
+               .retry(() => AB.objectScope().model().find({}, req))
                .then((scopes) => {
                   configMeta.scopes = scopes || [];
                });
 
             var SiteUser = AB.objectUser();
-            var pUsers = SiteUser.model()
-               .find({ isActive: 1 }, req)
+            var pUsers = req
+               .retry(() => SiteUser.model().find({ isActive: 1 }, req))
                .then((users) => {
                   // return only a minimal set of user data
                   configMeta.users = (users || []).map((u) => {

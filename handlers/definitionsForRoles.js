@@ -14,20 +14,6 @@ module.exports = {
    /**
     * inputValidation
     * define the expected inputs to this service handler:
-    * Format:
-    * "parameterName" : {
-    *    {joi.fn}   : {bool},  // performs: joi.{fn}();
-    *    {joi.fn}   : {
-    *       {joi.fn1} : true,   // performs: joi.{fn}().{fn1}();
-    *       {joi.fn2} : { options } // performs: joi.{fn}().{fn2}({options})
-    *    }
-    *    // examples:
-    *    "required" : {bool},  // default = false
-    *
-    *    // custom:
-    *        "validation" : {fn} a function(value, {allValues hash}) that
-    *                       returns { error:{null || {new Error("Error Message")} }, value: {normalize(value)}}
-    * }
     */
    inputValidation: {
       roles: { array: true, required: true },
@@ -38,7 +24,7 @@ module.exports = {
       // },
       // address: {
       //    string: { ip: { version: ["ipv4", "ipv6"], cidr: "required" } },
-      //    // joi.string().ip({ version:... })
+      //    // => joi.string().ip({ version:... })
       // },
    },
 
@@ -52,32 +38,50 @@ module.exports = {
     */
    fn: function handler(req, cb) {
       //
-      req.log("appbuilder.definitionsForRoles");
-      // access your config settings if you need them:
-      /*
-      var config = req.config();
-       */
+      var ServiceKey = this.key;
+      req.log(ServiceKey);
+
+      let tenantID = req.tenantID();
 
       // Get the passed in parameters
       var roles = req.param("roles");
+      let roleIDs = roles.map((r) => r.uuid);
+      roleIDs.sort(); // so they will always be in same order.
 
-      req.log("-- roles: --", roles);
+      req.log("-- roles: --", roleIDs);
 
       ABBootstrap.init(req)
          .then((AB) => {
-            var applications = AB.applications((a) =>
-               a.isAccessibleForRoles(roles)
-            );
-
-            req.log(
-               `appbuilder.definitionsForRoles: found ${applications.length} applications to export`
-            );
+            let hashIDs = AB.cache(ServiceKey);
+            if (!hashIDs) hashIDs = {};
 
             var ids = [];
-            applications.forEach((a) => {
-               a.exportIDs(ids);
-            });
+            // {array}
+            // all the ABDefinition.id that need to be exported.
 
+            var hashKey = roleIDs.join(",");
+            if (!hashIDs[hashKey]) {
+               req.log("building ID hash");
+
+               var applications = AB.applications((a) =>
+                  a.isAccessibleForRoles(roles)
+               );
+
+               req.log(
+                  `appbuilder.definitionsForRoles: found ${applications.length} applications to export`
+               );
+
+               // This takes a long time!
+               // Cache this?
+               let aIDs = [];
+               applications.forEach((a) => {
+                  a.exportIDs(aIDs);
+               });
+               hashIDs[hashKey] = aIDs;
+               AB.cache(ServiceKey, hashIDs);
+            }
+
+            ids = hashIDs[hashKey];
             req.log(
                `appbuilder.definitionsForRoles: found ${ids.length} ids to export.`
             );
