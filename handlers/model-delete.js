@@ -109,7 +109,7 @@ module.exports = {
                            numRows = num;
                            req.performance.measure("delete");
                            // End the API call here:
-                           cb(null, { numRows });
+                           // cb(null, { numRows });
                            done();
                         })
                         .catch((err) => {
@@ -118,6 +118,34 @@ module.exports = {
                            done(err);
                         });
                   },
+                  // broadcast our .delete to all connected web clients
+                  broadcast: (next) => {
+                     req.performance.mark("broadcast");
+                     req.broadcast(
+                        [
+                           {
+                              room: req.socketKey(object.id),
+                              event: "ab.datacollection.delete",
+                              data: {
+                                 objectId: object.id,
+                                 data: id,
+                              },
+                           },
+                        ],
+                        (err) => {
+                           req.performance.measure("broadcast");
+                           next(err);
+                        }
+                     );
+                  },
+
+                  serviceResponse: (done) => {
+                     // So let's end the service call here, then proceed
+                     // with the rest
+                     cb(null, { numRows });
+                     done();
+                  },
+
                   // 2) perform the lifecycle handlers.
                   postHandlers: (done) => {
                      // These can be performed in parallel

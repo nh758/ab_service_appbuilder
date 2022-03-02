@@ -26,20 +26,6 @@ module.exports = {
    /**
     * inputValidation
     * define the expected inputs to this service handler:
-    * Format:
-    * "parameterName" : {
-    *    {joi.fn}   : {bool},  // performs: joi.{fn}();
-    *    {joi.fn}   : {
-    *       {joi.fn1} : true,   // performs: joi.{fn}().{fn1}();
-    *       {joi.fn2} : { options } // performs: joi.{fn}().{fn2}({options})
-    *    }
-    *    // examples:
-    *    "required" : {bool},  // default = false
-    *
-    *    // custom:
-    *        "validation" : {fn} a function(value, {allValues hash}) that
-    *                       returns { error:{null || {new Error("Error Message")} }, value: {normalize(value)}}
-    * }
     */
    inputValidation: {
       objectID: { string: { uuid: true }, required: true },
@@ -170,7 +156,7 @@ module.exports = {
                            cleanReturnData(AB, object, [result]).then(() => {
                               newRow = result;
                               // end the api call here
-                              cb(null, result);
+                              // cb(null, result);
 
                               // proceed with the process
                               done(null, result);
@@ -182,31 +168,60 @@ module.exports = {
                            done(err);
                         });
                   },
+
+                  // broadcast our .update to all connected web clients
+                  broadcast: (next) => {
+                     req.performance.mark("broadcast");
+                     req.broadcast(
+                        [
+                           {
+                              room: req.socketKey(object.id),
+                              event: "ab.datacollection.update",
+                              data: {
+                                 objectId: object.id,
+                                 data: newRow,
+                              },
+                           },
+                        ],
+                        (err) => {
+                           req.performance.measure("broadcast");
+                           next(err);
+                        }
+                     );
+                  },
+
+                  serviceResponse: (done) => {
+                     // So let's end the service call here, then proceed
+                     // with the rest
+                     cb(null, newRow);
+                     done();
+                  },
+
                   // 3) perform the lifecycle handlers.
                   postHandlers: (done) => {
                      // These can be performed in parallel
                      async.parallel(
                         {
-                           // broadcast our .update to all connected web clients
-                           broadcast: (next) => {
-                              req.performance.mark("broadcast");
-                              req.broadcast(
-                                 [
-                                    {
-                                       room: req.socketKey(object.id),
-                                       event: "ab.datacollection.update",
-                                       data: {
-                                          objectId: object.id,
-                                          data: newRow,
-                                       },
-                                    },
-                                 ],
-                                 (err) => {
-                                    req.performance.measure("broadcast");
-                                    next(err);
-                                 }
-                              );
-                           },
+                           // // broadcast our .update to all connected web clients
+                           // broadcast: (next) => {
+                           //    req.performance.mark("broadcast");
+                           //    req.broadcast(
+                           //       [
+                           //          {
+                           //             room: req.socketKey(object.id),
+                           //             event: "ab.datacollection.update",
+                           //             data: {
+                           //                objectId: object.id,
+                           //                data: newRow,
+                           //             },
+                           //          },
+                           //       ],
+                           //       (err) => {
+                           //          req.performance.measure("broadcast");
+                           //          next(err);
+                           //       }
+                           //    );
+                           // },
                            logger: (next) => {
                               req.serviceRequest(
                                  "log_manager.rowlog-create",
