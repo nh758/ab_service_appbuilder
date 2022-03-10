@@ -152,27 +152,30 @@ module.exports = {
                      async.parallel(
                         {
                            // broadcast our .delete to all connected web clients
-                           broadcast: (next) => {
-                              req.performance.mark("broadcast");
-                              req.broadcast(
-                                 [
-                                    {
-                                       room: req.socketKey(object.id),
-                                       event: "ab.datacollection.delete",
-                                       data: {
-                                          objectId: object.id,
-                                          data: id,
-                                       },
-                                    },
-                                 ],
-                                 (err) => {
-                                    req.performance.measure("broadcast");
-                                    next(err);
-                                 }
-                              );
-                           },
+                           // broadcast: (next) => {
+                           //    req.performance.mark("broadcast");
+                           //    req.broadcast(
+                           //       [
+                           //          {
+                           //             room: req.socketKey(object.id),
+                           //             event: "ab.datacollection.delete",
+                           //             data: {
+                           //                objectId: object.id,
+                           //                data: id,
+                           //             },
+                           //          },
+                           //       ],
+                           //       (err) => {
+                           //          req.performance.measure("broadcast");
+                           //          next(err);
+                           //       }
+                           //    );
+                           // },
                            // each row action gets logged
                            logger: (next) => {
+                              if (!oldItem) {
+                                 return next();
+                              }
                               req.serviceRequest(
                                  "log_manager.rowlog-create",
                                  {
@@ -189,6 +192,9 @@ module.exports = {
                            },
                            // update our Process.trigger events
                            processTrigger: (next) => {
+                              if (!oldItem) {
+                                 return next();
+                              }
                               req.serviceRequest(
                                  "process_manager.trigger",
                                  {
@@ -202,6 +208,9 @@ module.exports = {
                            },
                            // Alert our Clients of changed data:
                            staleUpates: (next) => {
+                              if (!oldItem) {
+                                 return next();
+                              }
                               req.performance.mark("stale.update");
                               UpdateConnectedFields(
                                  AB,
