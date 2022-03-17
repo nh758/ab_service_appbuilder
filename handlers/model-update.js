@@ -350,6 +350,14 @@ function updateData(AB, object, id, values, userData, req) {
    // it will update to translations table after model values updated
    // let transParams = AB.cloneDeep(values.translations);
 
+   // check if we are updaing a number field with value of ""
+   let numFields = object.fields((f) => f.key == "number");
+   numFields.forEach((f) => {
+      if (values[f.columnName] == "") {
+         values[f.columnName] = null;
+      }
+   });
+
    let validationErrors = object.isValidData(values);
    if (validationErrors.length > 0) {
       return Promise.reject({
