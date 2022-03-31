@@ -18,13 +18,19 @@ WHERE \`label_key\` IN ( ? )`;
       console.log("sql:", sql);
       console.log("keys:", keys);
 
-      req.query(sql, [keys], (error, results /*, fields */) => {
-         if (error) {
-            req.log(sql);
-            reject(error);
-         } else {
-            resolve(results);
-         }
-      });
+      // only run the SQL if there were some Keys to lookup
+      if (keys.length > 0) {
+         req.query(sql, [keys], (error, results /*, fields */) => {
+            if (error) {
+               req.log(sql);
+               reject(error);
+            } else {
+               resolve(results);
+            }
+         });
+      } else {
+         // otherwise this is an empty response.
+         resolve([]);
+      }
    });
 };
