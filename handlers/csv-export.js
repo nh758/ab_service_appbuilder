@@ -102,10 +102,8 @@ module.exports = {
             ).then((SQL) => {
                cb(null, {
                   SQL,
-                  obj: obj.toObj(),
-                  def: dc,
-                  userData: userData,
-                  where,
+                  tenantDB: obj.dbSchemaName(),
+                  fileName: defCSV.settings.filename,
                });
             });
 
@@ -128,12 +126,7 @@ let getSQL = (AB, { hasHeader, dc, obj, userData, extraWhere }, req) => {
    };
    let sort;
 
-   if (
-      obj instanceof AB.Class.ABObjectQuery &&
-      obj.where &&
-      obj.where.rules &&
-      obj.where.rules.length
-   ) {
+   if (obj instanceof AB.Class.ABObjectQuery && obj.where?.rules?.length) {
       where.rules.push(obj.where);
    }
 
@@ -201,17 +194,18 @@ let getSQL = (AB, { hasHeader, dc, obj, userData, extraWhere }, req) => {
                switch (f.key) {
                   case "user":
                   case "connectObject":
+                     let LinkType = `${f.settings.linkType}:${f.settings.linkViaType}`;
                      // 1:M, 1:1 (isSource = true)
                      if (
-                        f.settings.linkType == "one" &&
-                        f.settings.linkViaType == "many"
+                        LinkType == "one:many" ||
+                        (LinkType == "one:one" && f.isSource())
                      ) {
                         select = `\`${columnName}\``;
                      }
                      // M:1, 1:1 (isSource = false)
                      else if (
-                        f.settings.linkType == "many" &&
-                        f.settings.linkViaType == "one"
+                        LinkType == "many:one" ||
+                        (LinkType == "one:one" && !f.isSource())
                      ) {
                         let objLink = f.datasourceLink;
                         let fieldLink = f.fieldLink;
@@ -223,13 +217,10 @@ let getSQL = (AB, { hasHeader, dc, obj, userData, extraWhere }, req) => {
                         }
                      }
                      // M:N
-                     else if (
-                        f.settings.linkType == "many" &&
-                        f.settings.linkViaType == "many"
-                     ) {
+                     else if (LinkType == "many:many") {
                         let joinTablename = f.joinTableName();
                         let joinColumnNames = f.joinColumnNames();
-                        select = `(SELECT GROUP_CONCAT(\`${joinColumnNames.targetColumnName}\` SEPARATOR ' & ') FROM \`${joinTablename}\` WHERE \`${joinColumnNames.sourceColumnName}\` = \`uuid\`)`;
+                        select = `(SELECT GROUP_CONCAT(\`${joinColumnNames.targetColumnName}\` SEPARATOR ' & ') FROM \`${joinTablename}\` WHERE \`${joinColumnNames.sourceColumnName}\` = \`${obj.tableName}\`.\`uuid\`)`;
                      }
 
                      break;
@@ -239,7 +230,7 @@ let getSQL = (AB, { hasHeader, dc, obj, userData, extraWhere }, req) => {
                   case "calculate":
                   case "TextFormula":
                      // TODO
-                     select = null;
+                     select = null; //'(SELECT "TODO")';
                      break;
                   case "list":
                      select = `
@@ -307,8 +298,39 @@ let getSQL = (AB, { hasHeader, dc, obj, userData, extraWhere }, req) => {
 
             try {
                // SQL = `${SQLHeader} ${query.toString()}
-               SQL = `${SQLHeader} ${query.toString()}`;
+               SQL = `${SQLHeader} ${query.toKnexQuery().toSQL().sql}`;
             } catch (e) {}
+
+            // We don't seem to be getting properly quoted DB+tablenames
+            // out of this kenx sql, so we will try to manually replace
+            // them with properly quoted references:
+
+            // gather a list of items to replace
+            var quoteHash = {
+               /* orig : quoted */
+            };
+
+            quoteObj(quoteHash, obj);
+            obj.connectFields().forEach((f) => {
+               var connObj = f.datasourceLink;
+               quoteObj(quoteHash, connObj);
+
+               let connType = `${f.settings.linkType}:${f.settings.linkViaType}`;
+               if (connType == "many:many") {
+                  let joinTablename = `${obj.dbSchemaName()}.${f.joinTableName()}`;
+                  let quotedJoinTableName =
+                     "`" + joinTablename.split(".").join("`.`") + "`";
+                  quoteHash[joinTablename] = quotedJoinTableName;
+               }
+            });
+
+            // NOTE: we want to start with the LONGEST ones first:
+            let sortedKeys = Object.keys(quoteHash).sort(
+               (a, b) => b.length - a.length
+            );
+            sortedKeys.forEach((k) => {
+               SQL = SQL.replaceAll(k, quoteHash[k]);
+            });
 
             return Promise.resolve(SQL);
          })
@@ -316,3 +338,11 @@ let getSQL = (AB, { hasHeader, dc, obj, userData, extraWhere }, req) => {
       // .then((SQL) => Promise.resolve(() => knex.raw(SQL)))
    );
 };
+
+function quoteObj(quoteHash, obj) {
+   // fix tenant db reference: => `tenantDB`
+   var objTable = obj.dbTableName(true);
+   var parts = objTable.split(".");
+   var objTableQuoted = "`" + parts.join("`.`") + "`";
+   quoteHash[objTable] = objTableQuoted;
+}
