@@ -180,6 +180,8 @@ let getSQL = (AB, { hasHeader, dc, obj, userData, extraWhere }, req) => {
          .then(() => {
             let SQL;
 
+            obj.queryConditions(query, options.where, userData, req);
+
             // Clear SELECT fields
             if (query.eager) query = query.eager("");
             if (query.clearEager) query = query.clearEager();
