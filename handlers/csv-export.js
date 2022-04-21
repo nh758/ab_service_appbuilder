@@ -180,7 +180,7 @@ let getSQL = (AB, { hasHeader, dc, obj, userData, extraWhere }, req) => {
          .then(() => {
             let SQL;
 
-            obj.queryConditions(query, options.where, userData, req);
+            obj.model().queryConditions(query, options.where, userData, req);
 
             // Clear SELECT fields
             if (query.eager) query = query.eager("");
@@ -195,7 +195,7 @@ let getSQL = (AB, { hasHeader, dc, obj, userData, extraWhere }, req) => {
 
                switch (f.key) {
                   case "user":
-                  case "connectObject":
+                  case "connectObject": {
                      let LinkType = `${f.settings.linkType}:${f.settings.linkViaType}`;
                      // 1:M, 1:1 (isSource = true)
                      if (
@@ -226,6 +226,7 @@ let getSQL = (AB, { hasHeader, dc, obj, userData, extraWhere }, req) => {
                      }
 
                      break;
+                  }
                   case "formula":
                      select = obj.convertFormulaField(f);
                      break;
