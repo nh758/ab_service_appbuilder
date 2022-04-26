@@ -8,6 +8,8 @@ const ABBootstrap = require("../AppBuilder/ABBootstrap");
 // responsible for initializing and returning an {ABFactory} that will work
 // with the current tenant for the incoming request.
 
+const _ = require("lodash");
+
 module.exports = {
    /**
     * Key: the cote message key we respond to.
@@ -141,7 +143,7 @@ let getSQL = (AB, { hasHeader, dc, obj, userData, extraWhere }, req) => {
          sort = dc.settings.objectWorkspace.sortFields;
    }
 
-   if (extraWhere) {
+   if (extraWhere && !_.isEmpty(extraWhere)) {
       where.rules.push(extraWhere);
    }
 
