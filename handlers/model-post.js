@@ -8,63 +8,6 @@ const cleanReturnData = require("../AppBuilder/utils/cleanReturnData");
 const Errors = require("../utils/Errors");
 const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.js");
 
-/**
- * tryCreate()
- * we wrap our actual find actions in this tryCreate() routine.  Mostly so that
- * if we encounter an Error that would just be a simple: retry, we can do that
- * easily. (looking at you ECONNRESET errors).
- * @param {ABObject} object
- *       the ABObject that we are using to perform the create()s
- * @param {obj} values
- *       the key=>value hash of new values to create
- * @param {obj} condDefaults
- *       our findAll() requires some default info about the USER
- * @param {ABUtil.request} req
- *       the request instance that handles requests for the current tenant
- * @param {int} retry
- *       a count of how many retry attempts.
- * @param {Error} lastError
- *       the last Error reported in trying to make the findAll().
- *       this is what is passed on if we have too many retries.
- * @return {Promise}
- *       .resolve() with the {data} entries from the findAll();
- */
-// function tryCreate(
-//    object,
-//    values,
-//    condDefaults,
-//    req,
-//    retry = 0,
-//    lastError = null
-// ) {
-//    // prevent too many retries
-//    if (retry >= 3) {
-//       req.log("Too Many Retries ... failing.");
-//       if (lastError) {
-//          throw lastError;
-//       } else {
-//          throw new Error("Too Many failed Retries.");
-//       }
-//       // return;
-//    }
-
-//    return object
-//       .model()
-//       .create(values, null, condDefaults, req)
-//       .catch((err) => {
-//          console.log("IN tryCreate().object.create().catch() handler:");
-//          console.error(err);
-
-//          if (Errors.isRetryError(err.code)) {
-//             req.log(`LOOKS LIKE WE GOT A ${err.code}! ... trying again:`);
-//             return tryCreate(object, values, condDefaults, req, retry + 1, err);
-//          }
-
-//          // if we get here, this isn't a RETRY instance, so propogate the error
-//          throw err;
-//       });
-// }
-
 module.exports = {
    /**
     * Key: the cote message key we respond to.
@@ -74,20 +17,6 @@ module.exports = {
    /**
     * inputValidation
     * define the expected inputs to this service handler:
-    * Format:
-    * "parameterName" : {
-    *    {joi.fn}   : {bool},  // performs: joi.{fn}();
-    *    {joi.fn}   : {
-    *       {joi.fn1} : true,   // performs: joi.{fn}().{fn1}();
-    *       {joi.fn2} : { options } // performs: joi.{fn}().{fn2}({options})
-    *    }
-    *    // examples:
-    *    "required" : {bool},  // default = false
-    *
-    *    // custom:
-    *        "validation" : {fn} a function(value, {allValues hash}) that
-    *                       returns { error:{null || {new Error("Error Message")} }, value: {normalize(value)}}
-    * }
     */
    inputValidation: {
       objectID: { string: { uuid: true }, required: true },
@@ -140,26 +69,29 @@ module.exports = {
 
                      // if SiteUser object then go gather the password and
                      // salt:
-                     req.serviceRequest(
-                        "user_manager.new-user-password",
-                        {
-                           password: values.password,
-                        },
-                        (err, results) => {
-                           if (err) {
-                              return done(err);
+                     if (values.password?.length) {
+                        req.serviceRequest(
+                           "user_manager.new-user-password",
+                           {
+                              password: values.password,
+                           },
+                           (err, results) => {
+                              if (err) {
+                                 return done(err);
+                              }
+                              Object.keys(results).forEach((k) => {
+                                 values[k] = results[k];
+                              });
+                              done();
                            }
-                           Object.keys(results).forEach((k) => {
-                              values[k] = results[k];
-                           });
-                           done();
-                        }
-                     );
+                        );
+                     } else {
+                        done();
+                     }
                   },
 
                   // 1) Perform the Initial Create of the data
                   create: (done) => {
-                     // tryCreate(object, values, condDefaults, req)
                      req.retry(() =>
                         object.model().create(values, null, condDefaults, req)
                      )
@@ -169,7 +101,7 @@ module.exports = {
 
                               // So let's end the service call here, then proceed
                               // with the rest
-                              cb(null, data);
+                              // cb(null, data);
 
                               // proceed with the process
                               done(null, data);
@@ -192,31 +124,59 @@ module.exports = {
                         });
                   },
 
+                  // broadcast our .create to all connected web clients
+                  broadcast: (done) => {
+                     req.performance.mark("broadcast");
+                     req.broadcast(
+                        [
+                           {
+                              room: req.socketKey(object.id),
+                              event: "ab.datacollection.create",
+                              data: {
+                                 objectId: object.id,
+                                 data: newRow,
+                              },
+                           },
+                        ],
+                        (err) => {
+                           req.performance.measure("broadcast");
+                           done(err);
+                        }
+                     );
+                  },
+
+                  serviceResponse: (done) => {
+                     // So let's end the service call here, then proceed
+                     // with the rest
+                     cb(null, newRow);
+                     done();
+                  },
+
                   // 2) perform the lifecycle handlers.
                   postHandlers: (done) => {
                      // These can be performed in parallel
                      async.parallel(
                         {
-                           // broadcast our .create to all connected web clients
-                           broadcast: (next) => {
-                              req.performance.mark("broadcast");
-                              req.broadcast(
-                                 [
-                                    {
-                                       room: req.socketKey(object.id),
-                                       event: "ab.datacollection.create",
-                                       data: {
-                                          objectId: object.id,
-                                          data: newRow,
-                                       },
-                                    },
-                                 ],
-                                 (err) => {
-                                    req.performance.measure("broadcast");
-                                    next(err);
-                                 }
-                              );
-                           },
+                           // // broadcast our .create to all connected web clients
+                           // broadcast: (next) => {
+                           //    req.performance.mark("broadcast");
+                           //    req.broadcast(
+                           //       [
+                           //          {
+                           //             room: req.socketKey(object.id),
+                           //             event: "ab.datacollection.create",
+                           //             data: {
+                           //                objectId: object.id,
+                           //                data: newRow,
+                           //             },
+                           //          },
+                           //       ],
+                           //       (err) => {
+                           //          req.performance.measure("broadcast");
+                           //          next(err);
+                           //       }
+                           //    );
+                           // },
                            // log the create for this new row of data
                            logger: (next) => {
                               req.serviceRequest(

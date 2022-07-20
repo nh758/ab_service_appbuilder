@@ -12,6 +12,11 @@ const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.j
 
 const { ref /*, raw  */ } = require("objection");
 
+const IgnoredUserFields = ["password", "salt", "lastLogin"];
+// {array}
+// A list of fields on the SiteUser object that should not be updated by this
+// service if they don't have a valid value.
+
 module.exports = {
    /**
     * Key: the cote message key we respond to.
@@ -21,20 +26,6 @@ module.exports = {
    /**
     * inputValidation
     * define the expected inputs to this service handler:
-    * Format:
-    * "parameterName" : {
-    *    {joi.fn}   : {bool},  // performs: joi.{fn}();
-    *    {joi.fn}   : {
-    *       {joi.fn1} : true,   // performs: joi.{fn}().{fn1}();
-    *       {joi.fn2} : { options } // performs: joi.{fn}().{fn2}({options})
-    *    }
-    *    // examples:
-    *    "required" : {bool},  // default = false
-    *
-    *    // custom:
-    *        "validation" : {fn} a function(value, {allValues hash}) that
-    *                       returns { error:{null || {new Error("Error Message")} }, value: {normalize(value)}}
-    * }
     */
    inputValidation: {
       objectID: { string: { uuid: true }, required: true },
@@ -52,7 +43,7 @@ module.exports = {
     *        a node style callback(err, results) to send data when job is finished
     */
    fn: function handler(req, cb) {
-      req.log("appbuilder.model-get:");
+      req.log("appbuilder.model-update:");
 
       ABBootstrap.init(req)
          .then((AB) => {
@@ -70,10 +61,48 @@ module.exports = {
             var id = req.param("ID");
             var values = req.param("values");
 
+            // Special Case:  SiteUser
+            // Remove any special fields if they don't have values set.
+            if (objID == AB.objectUser().id) {
+               IgnoredUserFields.forEach((k) => {
+                  if (!values[k] || values[k] == "NULL") {
+                     delete values[k];
+                  }
+               });
+            }
+
             var oldItem = null;
             var newRow = null;
             async.series(
                {
+                  // 0) SPECIAL CASE: if SiteUser and updating Password,
+                  //    go gather password + salt
+                  salty: (done) => {
+                     if (objID !== AB.objectUser().id) {
+                        return done();
+                     }
+
+                     if (values.password?.length) {
+                        req.serviceRequest(
+                           "user_manager.new-user-password",
+                           {
+                              password: values.password,
+                           },
+                           (err, results) => {
+                              if (err) {
+                                 return done(err);
+                              }
+                              Object.keys(results).forEach((k) => {
+                                 values[k] = results[k];
+                              });
+                              done();
+                           }
+                        );
+                     } else {
+                        done();
+                     }
+                  },
+
                   // 1) pull the old Item so we can compare updated connected
                   // entries that need to be updated.
                   findOld: (done) => {
@@ -127,7 +156,7 @@ module.exports = {
                            cleanReturnData(AB, object, [result]).then(() => {
                               newRow = result;
                               // end the api call here
-                              cb(null, result);
+                              // cb(null, result);
 
                               // proceed with the process
                               done(null, result);
@@ -139,31 +168,60 @@ module.exports = {
                            done(err);
                         });
                   },
+
+                  // broadcast our .update to all connected web clients
+                  broadcast: (next) => {
+                     req.performance.mark("broadcast");
+                     req.broadcast(
+                        [
+                           {
+                              room: req.socketKey(object.id),
+                              event: "ab.datacollection.update",
+                              data: {
+                                 objectId: object.id,
+                                 data: newRow,
+                              },
+                           },
+                        ],
+                        (err) => {
+                           req.performance.measure("broadcast");
+                           next(err);
+                        }
+                     );
+                  },
+
+                  serviceResponse: (done) => {
+                     // So let's end the service call here, then proceed
+                     // with the rest
+                     cb(null, newRow);
+                     done();
+                  },
+
                   // 3) perform the lifecycle handlers.
                   postHandlers: (done) => {
                      // These can be performed in parallel
                      async.parallel(
                         {
-                           // broadcast our .update to all connected web clients
-                           broadcast: (next) => {
-                              req.performance.mark("broadcast");
-                              req.broadcast(
-                                 [
-                                    {
-                                       room: req.socketKey(object.id),
-                                       event: "ab.datacollection.update",
-                                       data: {
-                                          objectId: object.id,
-                                          data: newRow,
-                                       },
-                                    },
-                                 ],
-                                 (err) => {
-                                    req.performance.measure("broadcast");
-                                    next(err);
-                                 }
-                              );
-                           },
+                           // // broadcast our .update to all connected web clients
+                           // broadcast: (next) => {
+                           //    req.performance.mark("broadcast");
+                           //    req.broadcast(
+                           //       [
+                           //          {
+                           //             room: req.socketKey(object.id),
+                           //             event: "ab.datacollection.update",
+                           //             data: {
+                           //                objectId: object.id,
+                           //                data: newRow,
+                           //             },
+                           //          },
+                           //       ],
+                           //       (err) => {
+                           //          req.performance.measure("broadcast");
+                           //          next(err);
+                           //       }
+                           //    );
+                           // },
                            logger: (next) => {
                               req.serviceRequest(
                                  "log_manager.rowlog-create",
@@ -291,6 +349,14 @@ function updateData(AB, object, id, values, userData, req) {
    // get translations values for the external object
    // it will update to translations table after model values updated
    // let transParams = AB.cloneDeep(values.translations);
+
+   // check if we are updaing a number field with value of ""
+   let numFields = object.fields((f) => f.key == "number");
+   numFields.forEach((f) => {
+      if (values[f.columnName] == "") {
+         values[f.columnName] = null;
+      }
+   });
 
    let validationErrors = object.isValidData(values);
    if (validationErrors.length > 0) {

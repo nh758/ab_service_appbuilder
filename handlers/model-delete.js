@@ -6,7 +6,7 @@ const async = require("async");
 const ABBootstrap = require("../AppBuilder/ABBootstrap");
 const cleanReturnData = require("../AppBuilder/utils/cleanReturnData");
 const Errors = require("../utils/Errors");
-const RetryFind = require("../utils/RetryFind.js");
+// const RetryFind = require("../utils/RetryFind.js");
 const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.js");
 
 module.exports = {
@@ -80,7 +80,6 @@ module.exports = {
                      // We are deleting an item...but first fetch its current data
                      // so we can clean up any relations on the client side after the delete
                      req.performance.mark("find.old");
-                     // findOldItem(AB, req, object, id, condDefaults)
                      req.retry(() =>
                         object.model().find(
                            {
@@ -110,7 +109,7 @@ module.exports = {
                            numRows = num;
                            req.performance.measure("delete");
                            // End the API call here:
-                           cb(null, { numRows });
+                           // cb(null, { numRows });
                            done();
                         })
                         .catch((err) => {
@@ -119,33 +118,64 @@ module.exports = {
                            done(err);
                         });
                   },
+                  // broadcast our .delete to all connected web clients
+                  broadcast: (next) => {
+                     req.performance.mark("broadcast");
+                     req.broadcast(
+                        [
+                           {
+                              room: req.socketKey(object.id),
+                              event: "ab.datacollection.delete",
+                              data: {
+                                 objectId: object.id,
+                                 data: id,
+                              },
+                           },
+                        ],
+                        (err) => {
+                           req.performance.measure("broadcast");
+                           next(err);
+                        }
+                     );
+                  },
+
+                  serviceResponse: (done) => {
+                     // So let's end the service call here, then proceed
+                     // with the rest
+                     cb(null, { numRows });
+                     done();
+                  },
+
                   // 2) perform the lifecycle handlers.
                   postHandlers: (done) => {
                      // These can be performed in parallel
                      async.parallel(
                         {
                            // broadcast our .delete to all connected web clients
-                           broadcast: (next) => {
-                              req.performance.mark("broadcast");
-                              req.broadcast(
-                                 [
-                                    {
-                                       room: req.socketKey(object.id),
-                                       event: "ab.datacollection.delete",
-                                       data: {
-                                          objectId: object.id,
-                                          data: id,
-                                       },
-                                    },
-                                 ],
-                                 (err) => {
-                                    req.performance.measure("broadcast");
-                                    next(err);
-                                 }
-                              );
-                           },
+                           // broadcast: (next) => {
+                           //    req.performance.mark("broadcast");
+                           //    req.broadcast(
+                           //       [
+                           //          {
+                           //             room: req.socketKey(object.id),
+                           //             event: "ab.datacollection.delete",
+                           //             data: {
+                           //                objectId: object.id,
+                           //                data: id,
+                           //             },
+                           //          },
+                           //       ],
+                           //       (err) => {
+                           //          req.performance.measure("broadcast");
+                           //          next(err);
+                           //       }
+                           //    );
+                           // },
                            // each row action gets logged
                            logger: (next) => {
+                              if (!oldItem) {
+                                 return next();
+                              }
                               req.serviceRequest(
                                  "log_manager.rowlog-create",
                                  {
@@ -162,6 +192,9 @@ module.exports = {
                            },
                            // update our Process.trigger events
                            processTrigger: (next) => {
+                              if (!oldItem) {
+                                 return next();
+                              }
                               req.serviceRequest(
                                  "process_manager.trigger",
                                  {
@@ -175,6 +208,9 @@ module.exports = {
                            },
                            // Alert our Clients of changed data:
                            staleUpates: (next) => {
+                              if (!oldItem) {
+                                 return next();
+                              }
                               req.performance.mark("stale.update");
                               UpdateConnectedFields(
                                  AB,
@@ -482,40 +518,3 @@ module.exports = {
 */
    },
 };
-
-/**
- * findOldItem()
- * pull the existing entry from the DB before we perform the delete.
- * @param {ABFactory} AB,
- * @param {reqService} req
- * @param {ABObject} object
- * @param {string} id
- * @param {json} condDefaults
- * @return {Promise}
- */
-function findOldItem(AB, req, object, id, condDefaults) {
-   return RetryFind(
-      object,
-      {
-         where: {
-            glue: "and",
-            rules: [
-               {
-                  key: object.PK(),
-                  rule: "equals",
-                  value: id,
-               },
-            ],
-         },
-         populate: true,
-      },
-      condDefaults,
-      req
-   ).then((result) => {
-      // we should return the single item, not an array.
-      if (result) {
-         return result[0];
-      }
-      return null;
-   });
-}

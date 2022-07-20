@@ -102,6 +102,7 @@ module.exports = {
             if (!object) {
                return Errors.missingObject(id, req, cb);
             }
+            req.log(`ABObject: ${object.label || object.name}`);
 
             var cond = req.param("cond");
 
@@ -125,7 +126,7 @@ module.exports = {
                   // 3) now Take all the conditions and reduce them to their final
                   // useable form: no complex in_query, contains_user, etc...
                   object
-                     .reduceConditions(cond.where, condDefaults)
+                     .reduceConditions(cond.where, condDefaults, req)
                      .then(() => {
                         req.log(`reduced where: ${JSON.stringify(cond.where)}`);
                         // 4) Perform the Find Operations
