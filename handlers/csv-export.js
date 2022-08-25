@@ -82,10 +82,12 @@ module.exports = {
                return;
             }
 
-            let obj = AB.objectByID(dc.settings.datasourceID);
+            let obj =
+               AB.objectByID(dc.settings.datasourceID) ??
+               AB.queryByID(dc.settings.datasourceID);
             if (!obj) {
                let err = new Error(
-                  `Unknown dc id [${dc.settings.datasourceID}]`
+                  `Unknown object/query id [${dc.settings.datasourceID}]`
                );
                cb(err);
                return;
@@ -168,6 +170,7 @@ let getSQL = (AB, { hasHeader, dc, obj, userData, extraWhere }, req) => {
 
    let query;
    if (obj instanceof AB.Class.ABObjectQuery) {
+      knex = AB.Knex.connection(obj.connName);
       query = knex.queryBuilder();
       query.from(obj.dbViewName());
    } else {
@@ -303,7 +306,11 @@ let getSQL = (AB, { hasHeader, dc, obj, userData, extraWhere }, req) => {
 
             try {
                // SQL = `${SQLHeader} ${query.toString()}
-               SQL = `${SQLHeader} ${query.toKnexQuery().toSQL().sql}`;
+               SQL = `${SQLHeader} ${
+                  query.toSQL
+                     ? query.toSQL().sql
+                     : query.toKnexQuery().toSQL().sql
+               }`;
             } catch (e) {}
 
             // We don't seem to be getting properly quoted DB+tablenames
