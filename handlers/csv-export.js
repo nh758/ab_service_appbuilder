@@ -242,15 +242,15 @@ let getSQL = (AB, { hasHeader, dc, obj, userData, extraWhere }, req) => {
                      break;
                   case "list":
                      select = `
-                        CASE
-                           ${(f.settings.options || [])
-                              .map((opt) => {
-                                 return `WHEN \`${columnName}\` = "${opt.id}" THEN "${opt.text}"`;
-                              })
-                              .join(" ")}
-                           ELSE ""
-                        END
-                     `;
+                         CASE
+                            ${(f.settings.options ?? [])
+                               .map((opt) => {
+                                  return `WHEN \`${columnName}\` = "${opt.id}" THEN "${opt.text}"`;
+                               })
+                               .join(" ")}
+                            ELSE ""
+                         END
+                      `;
                      break;
                   case "string":
                   case "LongText":
@@ -311,7 +311,14 @@ let getSQL = (AB, { hasHeader, dc, obj, userData, extraWhere }, req) => {
                      ? query.toSQL().sql
                      : query.toKnexQuery().toSQL().sql
                }`;
-            } catch (e) {}
+            } catch (e) {
+               AB.notify.developer(e, {
+                  context: "csv-export.getSQL",
+                  message: "Error generating SQL command",
+                  datasourceId: obj.id,
+                  where,
+               });
+            }
 
             // We don't seem to be getting properly quoted DB+tablenames
             // out of this kenx sql, so we will try to manually replace
