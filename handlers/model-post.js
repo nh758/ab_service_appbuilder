@@ -134,7 +134,8 @@ module.exports = {
                               event: "ab.datacollection.create",
                               data: {
                                  objectId: object.id,
-                                 data: newRow,
+                                 dataId: newRow[object.PK()],
+                                 // data: newRow,
                               },
                            },
                         ],
