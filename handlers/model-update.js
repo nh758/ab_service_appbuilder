@@ -179,7 +179,8 @@ module.exports = {
                               event: "ab.datacollection.update",
                               data: {
                                  objectId: object.id,
-                                 data: newRow,
+                                 dataId: newRow[object.PK()],
+                                 // data: newRow,
                               },
                            },
                         ],
