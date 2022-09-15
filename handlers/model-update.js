@@ -9,6 +9,7 @@ const cleanReturnData = require("../AppBuilder/utils/cleanReturnData");
 const Errors = require("../utils/Errors");
 const RetryFind = require("../utils/RetryFind");
 const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.js");
+const { broadcast } = require("../utils/broadcast.js");
 
 const { ref /*, raw  */ } = require("objection");
 
@@ -172,35 +173,16 @@ module.exports = {
                   // broadcast our .update to all connected web clients
                   broadcast: (next) => {
                      req.performance.mark("broadcast");
-                     // Collect the rooms
-                     const rooms = [];
-                     const roles = [];
-                     const checkScope = (/*role, record*/) => true;
-                     roles.forEach((role) => {
-                        // does the role have access?
-                        const hasAccess = checkScope(role, newRow);
-                        if (!hasAccess) return;
-                        const roomKey = `${object.id}-${role}`;
-                        rooms.push(req.socketKey(roomKey));
-                     });
-
-                     req.broadcast(
-                        [
-                           {
-                              room: rooms,
-                              event: "ab.datacollection.update",
-                              data: {
-                                 objectId: object.id,
-                                 dataId: newRow[object.PK()],
-                                 // data: newRow,
-                              },
-                           },
-                        ],
-                        (err) => {
+                     broadcast({
+                        req,
+                        object,
+                        data: newRow,
+                        event: "ab.datacollection.update",
+                        callback: (err) => {
                            req.performance.measure("broadcast");
                            next(err);
-                        }
-                     );
+                        },
+                     });
                   },
 
                   serviceResponse: (done) => {

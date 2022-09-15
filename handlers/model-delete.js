@@ -8,6 +8,7 @@ const cleanReturnData = require("../AppBuilder/utils/cleanReturnData");
 const Errors = require("../utils/Errors");
 // const RetryFind = require("../utils/RetryFind.js");
 const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.js");
+const { broadcast } = require("../utils/broadcast.js");
 
 module.exports = {
    /**
@@ -121,22 +122,16 @@ module.exports = {
                   // broadcast our .delete to all connected web clients
                   broadcast: (next) => {
                      req.performance.mark("broadcast");
-                     req.broadcast(
-                        [
-                           {
-                              room: req.socketKey(object.id),
-                              event: "ab.datacollection.delete",
-                              data: {
-                                 objectId: object.id,
-                                 data: id,
-                              },
-                           },
-                        ],
-                        (err) => {
+                     broadcast({
+                        req,
+                        object,
+                        data: id,
+                        event: "ab.datacollection.delete",
+                        callback: (err) => {
                            req.performance.measure("broadcast");
                            next(err);
-                        }
-                     );
+                        },
+                     });
                   },
 
                   serviceResponse: (done) => {
