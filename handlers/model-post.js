@@ -7,7 +7,7 @@ const ABBootstrap = require("../AppBuilder/ABBootstrap");
 const cleanReturnData = require("../AppBuilder/utils/cleanReturnData");
 const Errors = require("../utils/Errors");
 const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.js");
-const { broadcast } = require("../utils/broadcast.js");
+const { prepareBroadcast } = require("../utils/broadcast.js");
 
 module.exports = {
    /**
@@ -128,15 +128,15 @@ module.exports = {
                   // broadcast our .create to all connected web clients
                   broadcast: (done) => {
                      req.performance.mark("broadcast");
-                     broadcast({
+                     const packet = prepareBroadcast({
                         req,
                         object,
                         data: newRow,
                         event: "ab.datacollection.create",
-                        callback: (err) => {
-                           req.performance.measure("broadcast");
-                           done(err);
-                        },
+                     });
+                     req.broadcast([packet], (err) => {
+                        req.performance.measure("broadcast");
+                        done(err);
                      });
                   },
 

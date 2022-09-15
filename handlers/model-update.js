@@ -9,7 +9,7 @@ const cleanReturnData = require("../AppBuilder/utils/cleanReturnData");
 const Errors = require("../utils/Errors");
 const RetryFind = require("../utils/RetryFind");
 const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.js");
-const { broadcast } = require("../utils/broadcast.js");
+const { prepareBroadcast } = require("../utils/broadcast.js");
 
 const { ref /*, raw  */ } = require("objection");
 
@@ -173,15 +173,15 @@ module.exports = {
                   // broadcast our .update to all connected web clients
                   broadcast: (next) => {
                      req.performance.mark("broadcast");
-                     broadcast({
+                     const packet = prepareBroadcast({
                         req,
                         object,
                         data: newRow,
                         event: "ab.datacollection.update",
-                        callback: (err) => {
-                           req.performance.measure("broadcast");
-                           next(err);
-                        },
+                     });
+                     req.broadcast([packet], (err) => {
+                        req.performance.measure("broadcast");
+                        next(err);
                      });
                   },
 
