@@ -172,10 +172,22 @@ module.exports = {
                   // broadcast our .update to all connected web clients
                   broadcast: (next) => {
                      req.performance.mark("broadcast");
+                     // Collect the rooms
+                     const rooms = [];
+                     const roles = [];
+                     const checkScope = (/*role, record*/) => true;
+                     roles.forEach((role) => {
+                        // does the role have access?
+                        const hasAccess = checkScope(role, newRow);
+                        if (!hasAccess) return;
+                        const roomKey = `${object.id}-${role}`;
+                        rooms.push(req.socketKey(roomKey));
+                     });
+
                      req.broadcast(
                         [
                            {
-                              room: req.socketKey(object.id),
+                              room: rooms,
                               event: "ab.datacollection.update",
                               data: {
                                  objectId: object.id,
