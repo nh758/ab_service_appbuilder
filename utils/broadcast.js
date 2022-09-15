@@ -1,4 +1,4 @@
-module.exports = function prepareBroadcast({ req, object, data, event }) {
+function prepareBroadcast({ req, object, data, event }) {
    const rooms = [];
    const roles = [];
    const checkScope = (/*role, record*/) => true;
@@ -17,4 +17,5 @@ module.exports = function prepareBroadcast({ req, object, data, event }) {
          data,
       },
    };
-};
+}
+module.exports = { prepareBroadcast };
