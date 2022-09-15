@@ -1,5 +1,6 @@
 // broadcastUpdateConnectedFields.js
-var RetryFind = require("./RetryFind.js");
+// var RetryFind = require("./RetryFind.js");
+const { prepareBroadcast } = require("./broadcast.js");
 
 function pullFieldsFromEntry(items, entry, relationName) {
    if (entry) {
@@ -25,16 +26,16 @@ module.exports = function updateConnectedFields(
    newItem,
    condDefaults
 ) {
-   var lookups = [];
+   const lookups = [];
    // {array[Promise]}
    // all the object.finds() we are waiting to complete.
 
-   var packets = [];
+   const packets = [];
    // {array}
    // this will be a compilation of all the broadcast packets to send.
 
    // Check to see if the object has any connected fields that need to be updated
-   var connectFields = object.connectFields();
+   const connectFields = object.connectFields();
 
    // Parse through the connected fields
    connectFields.forEach((f) => {
@@ -49,7 +50,7 @@ module.exports = function updateConnectedFields(
       // from the rest
       var relationName = f.relationName();
 
-      var items = [];
+      let items = [];
 
       pullFieldsFromEntry(items, oldItem, relationName);
       pullFieldsFromEntry(items, newItem, relationName);
@@ -99,14 +100,13 @@ module.exports = function updateConnectedFields(
             )
             .then((data) => {
                (data || []).forEach((d) => {
-                  packets.push({
-                     room: req.socketKey(field.object.id),
+                  const packet = prepareBroadcast({
+                     req,
+                     object: field.object,
+                     data: d,
                      event: "ab.datacollection.update",
-                     data: {
-                        objectId: field.object.id,
-                        data: d,
-                     },
                   });
+                  packets.push(packet);
                });
             })
             .catch((err) => {
