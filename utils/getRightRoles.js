@@ -30,9 +30,12 @@ module.exports = async function (AB, currentObject, data) {
          where: {},
          populate: ["roles"],
       });
-
    scopes.forEach((s) => {
-      if (s.allowAll || isDataValid(AB, s, currentObject, data)) {
+      if (
+         s.allowAll ||
+         data == null ||
+         isDataValid(AB, s, currentObject, data)
+      ) {
          const scopeRoles = s.roles__relation ?? s.roles ?? [];
 
          // add the role info to the result list
@@ -42,6 +45,5 @@ module.exports = async function (AB, currentObject, data) {
          });
       }
    });
-
    return roles;
 };

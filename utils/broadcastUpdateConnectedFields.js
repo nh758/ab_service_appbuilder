@@ -101,6 +101,7 @@ module.exports = function updateConnectedFields(
             .then(async (data) => {
                await (data || []).forEach(async (d) => {
                   const packet = await prepareBroadcast({
+                     AB,
                      req,
                      object: field.object,
                      data: d,

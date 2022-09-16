@@ -74,6 +74,7 @@ module.exports = {
 
             var oldItem = null;
             var newRow = null;
+            const packets = [];
             async.series(
                {
                   // 0) SPECIAL CASE: if SiteUser and updating Password,
@@ -169,17 +170,26 @@ module.exports = {
                            done(err);
                         });
                   },
-
-                  // broadcast our .update to all connected web clients
-                  broadcast: async (next) => {
-                     req.performance.mark("broadcast");
-                     const packet = await prepareBroadcast({
+                  perpareBroadcast: (next) => {
+                     req.performance.mark("prepare broadcast");
+                     prepareBroadcast({
+                        AB,
                         req,
                         object,
                         data: newRow,
                         event: "ab.datacollection.update",
-                     });
-                     req.broadcast([packet], (err) => {
+                     })
+                        .then((packet) => {
+                           packets.push(packet);
+                           req.performance.measure("prepare broadcast");
+                           next();
+                        })
+                        .catch((err) => next(err));
+                  },
+                  // broadcast our .update to all connected web clients
+                  broadcast: (next) => {
+                     req.performance.mark("broadcast");
+                     req.broadcast(packets, (err) => {
                         req.performance.measure("broadcast");
                         next(err);
                      });

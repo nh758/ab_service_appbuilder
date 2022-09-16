@@ -59,6 +59,7 @@ module.exports = {
             var condDefaults = req.userDefaults();
 
             var newRow = null;
+            const packets = [];
             async.series(
                {
                   // 0) Special Case: if adding a User, need to gather
@@ -124,17 +125,27 @@ module.exports = {
                            done(err);
                         });
                   },
-
-                  // broadcast our .create to all connected web clients
-                  broadcast: async (done) => {
-                     req.performance.mark("broadcast");
-                     const packet = await prepareBroadcast({
+                  perpareBroadcast: (done) => {
+                     req.performance.mark("prepare broadcast");
+                     prepareBroadcast({
+                        AB,
                         req,
                         object,
                         data: newRow,
                         event: "ab.datacollection.create",
-                     });
-                     req.broadcast([packet], (err) => {
+                     })
+                        .then((packet) => {
+                           packets.push(packet);
+                           req.performance.measure("prepare broadcast");
+                           done();
+                        })
+                        .catch((err) => done(err));
+                  },
+
+                  // broadcast our .create to all connected web clients
+                  broadcast: (done) => {
+                     req.performance.mark("broadcast");
+                     req.broadcast(packets, (err) => {
                         req.performance.measure("broadcast");
                         done(err);
                      });

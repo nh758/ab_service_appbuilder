@@ -1,8 +1,8 @@
 const getRightRoles = require("./getRightRoles.js");
 
-async function prepareBroadcast({ req, object, data, event }) {
+async function prepareBroadcast({ AB, req, object, data, dataId, event }) {
    const rooms = [];
-   const roles = await getRightRoles(req.AB, object, data);
+   const roles = await getRightRoles(AB, object, data);
    // const roles = [];
    // const checkScope = (/*role, record*/) => true;
    roles.forEach((role) => {
@@ -17,7 +17,7 @@ async function prepareBroadcast({ req, object, data, event }) {
       event,
       data: {
          objectId: object.id,
-         data,
+         data: data ?? dataId,
       },
    };
 }

@@ -73,7 +73,7 @@ module.exports = {
             var numRows = -1;
             // {int}
             // The # of rows effected by our delete operation.
-
+            const packets = [];
             async.series(
                {
                   // 1) Perform the Initial Delete of the data
@@ -119,16 +119,26 @@ module.exports = {
                            done(err);
                         });
                   },
-                  // broadcast our .delete to all connected web clients
-                  broadcast: async (next) => {
-                     req.performance.mark("broadcast");
-                     const packet = await prepareBroadcast({
+                  perpareBroadcast: (next) => {
+                     req.performance.mark("prepare broadcast");
+                     prepareBroadcast({
+                        AB,
                         req,
                         object,
-                        data: id,
+                        dataId: id,
                         event: "ab.datacollection.delete",
-                     });
-                     req.broadcast([packet], (err) => {
+                     })
+                        .then((packet) => {
+                           packets.push(packet);
+                           req.performance.measure("prepare broadcast");
+                           next();
+                        })
+                        .catch((err) => next(err));
+                  },
+                  // broadcast our .delete to all connected web clients
+                  broadcast: (next) => {
+                     req.performance.mark("broadcast");
+                     req.broadcast(packets, (err) => {
                         req.performance.measure("broadcast");
                         next(err);
                      });
