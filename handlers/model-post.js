@@ -126,9 +126,9 @@ module.exports = {
                   },
 
                   // broadcast our .create to all connected web clients
-                  broadcast: (done) => {
+                  broadcast: async (done) => {
                      req.performance.mark("broadcast");
-                     const packet = prepareBroadcast({
+                     const packet = await prepareBroadcast({
                         req,
                         object,
                         data: newRow,

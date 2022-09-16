@@ -120,9 +120,9 @@ module.exports = {
                         });
                   },
                   // broadcast our .delete to all connected web clients
-                  broadcast: (next) => {
+                  broadcast: async (next) => {
                      req.performance.mark("broadcast");
-                     const packet = prepareBroadcast({
+                     const packet = await prepareBroadcast({
                         req,
                         object,
                         data: id,

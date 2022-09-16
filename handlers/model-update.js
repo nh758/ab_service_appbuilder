@@ -10,7 +10,6 @@ const Errors = require("../utils/Errors");
 const RetryFind = require("../utils/RetryFind");
 const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.js");
 const { prepareBroadcast } = require("../utils/broadcast.js");
-const GetRoles = require("../utils/getRightRoles");
 
 const { ref /*, raw  */ } = require("objection");
 
@@ -75,7 +74,6 @@ module.exports = {
 
             var oldItem = null;
             var newRow = null;
-            let roles = [];
             async.series(
                {
                   // 0) SPECIAL CASE: if SiteUser and updating Password,
@@ -172,24 +170,12 @@ module.exports = {
                         });
                   },
 
-                  pullRoles: (next) => {
-                     GetRoles(AB, object, newRow)
-                        .then((roleList) => {
-                           roles = roleList ?? [];
-                           next();
-                        })
-                        .catch((err) => {
-                           next(err);
-                        });
-                  },
-
                   // broadcast our .update to all connected web clients
-                  broadcast: (next) => {
+                  broadcast: async (next) => {
                      req.performance.mark("broadcast");
-                     const packet = prepareBroadcast({
+                     const packet = await prepareBroadcast({
                         req,
                         object,
-                        roles,
                         data: newRow,
                         event: "ab.datacollection.update",
                      });
