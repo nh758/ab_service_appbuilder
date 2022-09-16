@@ -7,6 +7,7 @@ const ABBootstrap = require("../AppBuilder/ABBootstrap");
 const cleanReturnData = require("../AppBuilder/utils/cleanReturnData");
 const Errors = require("../utils/Errors");
 const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.js");
+const { prepareBroadcast } = require("../utils/broadcast.js");
 
 module.exports = {
    /**
@@ -58,6 +59,7 @@ module.exports = {
             var condDefaults = req.userDefaults();
 
             var newRow = null;
+            const packets = [];
             async.series(
                {
                   // 0) Special Case: if adding a User, need to gather
@@ -123,27 +125,30 @@ module.exports = {
                            done(err);
                         });
                   },
+                  perpareBroadcast: (done) => {
+                     req.performance.mark("prepare broadcast");
+                     prepareBroadcast({
+                        AB,
+                        req,
+                        object,
+                        data: newRow,
+                        event: "ab.datacollection.create",
+                     })
+                        .then((packet) => {
+                           packets.push(packet);
+                           req.performance.measure("prepare broadcast");
+                           done();
+                        })
+                        .catch((err) => done(err));
+                  },
 
                   // broadcast our .create to all connected web clients
                   broadcast: (done) => {
                      req.performance.mark("broadcast");
-                     req.broadcast(
-                        [
-                           {
-                              room: req.socketKey(object.id),
-                              event: "ab.datacollection.create",
-                              data: {
-                                 objectId: object.id,
-                                 dataId: newRow[object.PK()],
-                                 // data: newRow,
-                              },
-                           },
-                        ],
-                        (err) => {
-                           req.performance.measure("broadcast");
-                           done(err);
-                        }
-                     );
+                     req.broadcast(packets, (err) => {
+                        req.performance.measure("broadcast");
+                        done(err);
+                     });
                   },
 
                   serviceResponse: (done) => {
