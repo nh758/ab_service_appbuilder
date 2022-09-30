@@ -8,6 +8,7 @@ const cleanReturnData = require("../AppBuilder/utils/cleanReturnData");
 const Errors = require("../utils/Errors");
 // const RetryFind = require("../utils/RetryFind.js");
 const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.js");
+const { prepareBroadcast } = require("../utils/broadcast.js");
 
 module.exports = {
    /**
@@ -72,7 +73,7 @@ module.exports = {
             var numRows = -1;
             // {int}
             // The # of rows effected by our delete operation.
-
+            const packets = [];
             async.series(
                {
                   // 1) Perform the Initial Delete of the data
@@ -118,25 +119,29 @@ module.exports = {
                            done(err);
                         });
                   },
+                  perpareBroadcast: (next) => {
+                     req.performance.mark("prepare broadcast");
+                     prepareBroadcast({
+                        AB,
+                        req,
+                        object,
+                        dataId: id,
+                        event: "ab.datacollection.delete",
+                     })
+                        .then((packet) => {
+                           packets.push(packet);
+                           req.performance.measure("prepare broadcast");
+                           next();
+                        })
+                        .catch((err) => next(err));
+                  },
                   // broadcast our .delete to all connected web clients
                   broadcast: (next) => {
                      req.performance.mark("broadcast");
-                     req.broadcast(
-                        [
-                           {
-                              room: req.socketKey(object.id),
-                              event: "ab.datacollection.delete",
-                              data: {
-                                 objectId: object.id,
-                                 data: id,
-                              },
-                           },
-                        ],
-                        (err) => {
-                           req.performance.measure("broadcast");
-                           next(err);
-                        }
-                     );
+                     req.broadcast(packets, (err) => {
+                        req.performance.measure("broadcast");
+                        next(err);
+                     });
                   },
 
                   serviceResponse: (done) => {
