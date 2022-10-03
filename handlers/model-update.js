@@ -32,6 +32,7 @@ module.exports = {
       objectID: { string: { uuid: true }, required: true },
       ID: { string: { uuid: true }, required: true },
       values: { object: true, required: true },
+      fromProcessManager: { boolean: true, optional: true },
       // uuid: { string: { uuid: true }, required: true }
    },
 
@@ -61,6 +62,7 @@ module.exports = {
 
             var id = req.param("ID");
             var values = req.param("values");
+            const fromProcessManager = req.param("fromProcessManager");
 
             // Special Case:  SiteUser
             // Remove any special fields if they don't have values set.
@@ -243,6 +245,8 @@ module.exports = {
                               );
                            },
                            trigger: (next) => {
+                              if (fromProcessManager) return;
+
                               req.serviceRequest(
                                  "process_manager.trigger",
                                  {
@@ -291,12 +295,17 @@ module.exports = {
                                  newRow,
                               });
                            }
-                           req.performance.log([
+
+                           const message = [
                               "broadcast",
                               "log_manager.rowlog-create",
-                              "process_manager.trigger",
                               // "stale.update",
-                           ]);
+                           ];
+
+                           if (!fromProcessManager)
+                              message.push("process_manager.trigger");
+
+                           req.performance.log(message);
                            done(err);
                         }
                      );
