@@ -189,6 +189,7 @@ module.exports = {
                                  "log_manager.rowlog-create",
                                  {
                                     username: condDefaults.username,
+                                    usernameReal: req.usernameReal(),
                                     record: newRow,
                                     level: "insert",
                                     row: newRow.uuid,

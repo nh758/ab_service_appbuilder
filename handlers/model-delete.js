@@ -185,6 +185,7 @@ module.exports = {
                                  "log_manager.rowlog-create",
                                  {
                                     username: condDefaults.username,
+                                    usernameReal: req.usernameReal(),
                                     record: oldItem,
                                     level: "delete",
                                     row: id,
