@@ -8,6 +8,7 @@ const cleanReturnData = require("../AppBuilder/utils/cleanReturnData");
 const Errors = require("../utils/Errors");
 const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.js");
 const { prepareBroadcast } = require("../utils/broadcast.js");
+const { registerProcessTrigger } = require("../utils/processTrigger.js");
 
 module.exports = {
    /**
@@ -199,17 +200,14 @@ module.exports = {
                                  }
                               );
                            },
-                           trigger: (next) => {
-                              req.serviceRequest(
-                                 "process_manager.trigger",
-                                 {
-                                    key: `${object.id}.added`,
-                                    data: newRow,
-                                 },
-                                 (err) => {
-                                    next(err);
-                                 }
-                              );
+                           trigger: async () => {
+                              const key = `${object.id}.added`;
+                              try {
+                                 await registerProcessTrigger(req, key, newRow);
+                                 return;
+                              } catch (err) {
+                                 return err;
+                              }
                            },
 
                            // Alert our Clients of changed data:

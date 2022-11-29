@@ -10,6 +10,7 @@ const Errors = require("../utils/Errors");
 const RetryFind = require("../utils/RetryFind");
 const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.js");
 const { prepareBroadcast } = require("../utils/broadcast.js");
+const { registerProcessTrigger } = require("../utils/processTrigger.js");
 
 const { ref /*, raw  */ } = require("objection");
 
@@ -244,19 +245,15 @@ module.exports = {
                                  }
                               );
                            },
-                           trigger: (next) => {
+                           trigger: async () => {
                               if (fromProcessManager) return;
-
-                              req.serviceRequest(
-                                 "process_manager.trigger",
-                                 {
-                                    key: `${object.id}.updated`,
-                                    data: newRow,
-                                 },
-                                 (err) => {
-                                    next(err);
-                                 }
-                              );
+                              const key = `${object.id}.updated`;
+                              try {
+                                 await registerProcessTrigger(req, key, newRow);
+                                 return;
+                              } catch (err) {
+                                 return err;
+                              }
                            },
                            // NOTE: in v2, we are replacing "stale" notifications
                            // with "update" notifications in order to reduce the
