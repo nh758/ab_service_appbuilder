@@ -247,9 +247,11 @@ module.exports = {
                            },
                            trigger: async () => {
                               if (fromProcessManager) return;
-                              const key = `${object.id}.updated`;
                               try {
-                                 await registerProcessTrigger(req, key, newRow);
+                                 await registerProcessTrigger(req, {
+                                    key: `${object.id}.updated`,
+                                    data: newRow,
+                                 });
                                  return;
                               } catch (err) {
                                  return err;

@@ -202,11 +202,10 @@ module.exports = {
                                  return;
                               }
                               try {
-                                 await registerProcessTrigger(
-                                    req,
-                                    `${object.id}.deleted`,
-                                    oldItem
-                                 );
+                                 await registerProcessTrigger(req, {
+                                    key: `${object.id}.deleted`,
+                                    data: oldItem,
+                                 });
                                  return;
                               } catch (err) {
                                  return err;

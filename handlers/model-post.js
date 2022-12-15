@@ -201,9 +201,11 @@ module.exports = {
                               );
                            },
                            trigger: async () => {
-                              const key = `${object.id}.added`;
                               try {
-                                 await registerProcessTrigger(req, key, newRow);
+                                 await registerProcessTrigger(req, {
+                                    key: `${object.id}.added`,
+                                    data: newRow,
+                                 });
                                  return;
                               } catch (err) {
                                  return err;
