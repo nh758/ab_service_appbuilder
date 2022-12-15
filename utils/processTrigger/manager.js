@@ -28,12 +28,18 @@ let pmTriggerCircuitBreaker;
  * ProcessTriggerQueue instance. This gets called after startup.
  * @param {ABRequestService} req
  */
-async function initProcessTriggerQueues(req) {
-   initCircuitBreaker();
+async function initProcessTriggerQueues(req, config) {
+   initCircuitBreaker(config);
    const tenants = (await getTenants(req)) ?? [];
    const promises = [];
    tenants.forEach((tenant) => {
-      promises.push(getProcessTriggerQueue(tenant.uuid, req));
+      promises.push(
+         getProcessTriggerQueue(
+            tenant.uuid,
+            req,
+            config?.processTrigger?.retryInterval
+         )
+      );
    });
    await Promise.all(promises);
 }
@@ -46,11 +52,15 @@ async function initProcessTriggerQueues(req) {
  * are failing repeatedly the breaker flips and uses the fallback directly. This
  * gives process_manager time to recover, before the CircuitBreaker tries again.
  */
-function initCircuitBreaker() {
+function initCircuitBreaker(config) {
    const options = {
-      timeout: 3000, // If request takes longer than 3 seconds, trigger a failure
-      errorThresholdPercentage: 50, // When 50% of requests fail, trip the circuit
-      resetTimeout: 30000, // After 30 seconds, try again.
+      timeout: config?.processTrigger?.circuit?.timeout ?? 3000,
+      // If request takes longer than 3 seconds, trigger a failure
+      errorThresholdPercentage:
+         config?.processTrigger?.circuit?.threshold ?? 50,
+      // When 50% of requests fail, trip the circuit
+      resetTimeout: config?.processTrigger?.circuit?.reset ?? 30000,
+      // After 30 seconds, try again.
    };
    pmTriggerCircuitBreaker = new CircuitBreaker(
       (req, jobData) =>
@@ -96,14 +106,17 @@ function initCircuitBreaker() {
  * @description get the ProcessTriggerQueue instance for a given tenant. Will
  * create an instance if necessary.
  * @param {string} tenant tenant uuid
+ * @paran {ABRequestService} req
+ * @param {number} retryInterval? optional
  * @return {ProcessTriggerQueue}
  */
-async function getProcessTriggerQueue(tenant, req) {
+async function getProcessTriggerQueue(tenant, req, retryInterval) {
    if (!processTriggerQueueCache[tenant]) {
       processTriggerQueueCache[tenant] = new ProcessTriggerQueue(
          tenant,
          registerProcessTrigger,
-         req
+         req,
+         retryInterval
       );
       await processTriggerQueueCache[tenant].init();
    }

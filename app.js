@@ -9,7 +9,7 @@ const {
 
 var controller = AB.controller("appbuilder");
 controller.afterStartup((req, cb) => {
-   initProcessTriggerQueues(req)
+   initProcessTriggerQueues(req, AB.config())
       .then(cb)
       .catch((err) => cb(err));
 });

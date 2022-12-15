@@ -57,7 +57,7 @@ describe("ProcessTriggerQueue", () => {
       const queue = new ProcessTriggerQueue("tenant", () => {}, mockReq);
       const stubRetry = sinon.stub(queue, "retryQueued");
       await queue.init();
-      await clock.tickAsync(30000);
+      await clock.tickAsync(60000);
       assert.equal(stubRetry.callCount, 2);
       assert.deepEqual(queue.Queue, { 123: testQueueData["123"] });
    });

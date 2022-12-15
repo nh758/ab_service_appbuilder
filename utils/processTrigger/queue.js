@@ -12,9 +12,10 @@ module.exports = class ProcessTriggerQueue {
     * @param {function} retryFn function that makes the process_manager.trigger request
     * @param {ABRequestService} req
     */
-   constructor(tenant, retryFn, req) {
+   constructor(tenant, retryFn, req, retryInterval) {
       this.Queue = {};
       this.retry = retryFn;
+      this.retryInterval = retryInterval ?? 30000;
       // We need to make a new ABRequestService for the provided tenant
       const currentValue = req.tenantID ?? "??";
       req.tenantID = tenant;
@@ -42,7 +43,10 @@ module.exports = class ProcessTriggerQueue {
       } catch (err) {
          console.log(err);
       }
-      this._retryInterval = setInterval(() => this.retryQueued(), 15000);
+      this._retryInterval = setInterval(
+         () => this.retryQueued(),
+         this.retryInterval
+      );
    }
 
    /**
