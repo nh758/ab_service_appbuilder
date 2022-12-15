@@ -11,9 +11,9 @@ function runQuery(req, sql) {
    });
 }
 
-function create(req, { requestId, key, data, user }) {
+function create(req, { requestID, key, data, user }) {
    const db = req.queryTenantDB();
-   const sql = `INSERT INTO ${db}.\`SITE_PENDING_TRIGGER\` (\`uuid\`, \`created_at\`, \`updated_at\`, \`key\`, \`data\`, \`user\`) VALUES ('${requestId}', NOW(), NOW(), '${key}', '${JSON.stringify(
+   const sql = `INSERT INTO ${db}.\`SITE_PENDING_TRIGGER\` (\`uuid\`, \`created_at\`, \`updated_at\`, \`key\`, \`data\`, \`user\`) VALUES ('${requestID}', NOW(), NOW(), '${key}', '${JSON.stringify(
       data
    )}', '${JSON.stringify(user)}')`;
    return runQuery(req, sql);

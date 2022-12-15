@@ -35,7 +35,7 @@ module.exports = class ProcessTriggerQueue {
             this.Queue[row.uuid] = {
                key: row.key,
                data: JSON.parse(row.data),
-               requestId: row.uuid,
+               requestID: row.uuid,
                user: JSON.parse(row.user),
             };
          });
@@ -53,7 +53,7 @@ module.exports = class ProcessTriggerQueue {
     * process_manager.trigger
     */
    async add(req, jobData) {
-      const uuid = jobData.requestId;
+      const uuid = jobData.requestID;
       if (this.Queue[uuid]) return; //already queued
       // save the req user to use on retry so that triggeredBy gets the correct user
       jobData.user = req._user;
@@ -66,7 +66,7 @@ module.exports = class ProcessTriggerQueue {
     * @method remove
     * @description remove a process trigger request from the queue
     * @param {ABRequestService} req
-    * @param {string} uuid trigger uuid/requestId
+    * @param {string} uuid trigger uuid/requestID
     */
    async remove(req, uuid) {
       // If it's not in the Queue it completed successfully the first time (no

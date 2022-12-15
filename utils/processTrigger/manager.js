@@ -13,7 +13,7 @@ const processTriggerQueueCache = {};
 /**
  * @const {object} processTriggerQueueCache - We only want one
  * ProcessTriggerQueue instance per tenant
- * @example { tenant: ProcessTriggerQueue }
+ * @example { tenantID: ProcessTriggerQueue }
  */
 
 let pmTriggerCircuitBreaker;
@@ -139,14 +139,14 @@ async function saveToQueue(req, jobData) {
  * @param {object} job data to send with the service request
  * @param {string} job.key triggerKey normally <objectid>.add or .update/.delete
  * @param {object} job.data data to send to the process trigger
- * @param {string} job.requestId unique request id, assigns a new uuid if not provided
+ * @param {string} job.requestID unique request id, assigns a new uuid if not provided
  * @returns {Promise} resolves to string "fallback" if the fallback function was used
  */
-function registerProcessTrigger(req, { key, data, requestId }) {
+function registerProcessTrigger(req, { key, data, requestID }) {
    const jobData = {
       key,
       data,
-      requestId: requestId ?? uuid(),
+      requestID: requestID ?? uuid(),
    };
    return pmTriggerCircuitBreaker.fire(req, jobData);
 }

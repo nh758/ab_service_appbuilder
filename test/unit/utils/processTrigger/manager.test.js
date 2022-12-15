@@ -78,11 +78,11 @@ describe("ProcessTriggerManager", () => {
          data: {},
       };
       await manager.registerProcessTrigger(mockReq, jobData);
-      // Should generate requestId using uuid()
+      // Should generate requestID using uuid()
       assert.equal(uuidFake.callCount, 1);
       assert.deepEqual(circuitFakes.fire.firstCall.args, [
          mockReq,
-         { ...jobData, requestId: "123456789" },
+         { ...jobData, requestID: "123456789" },
       ]);
       // Should fire the circuit breaker
       assert(circuitFakes.fire.calledOnce);
@@ -92,7 +92,7 @@ describe("ProcessTriggerManager", () => {
       const jobData = {
          key: "mykey",
          data: {},
-         requestId: "123",
+         requestID: "123",
       };
       await manager.initProcessTriggerQueues(mockReq);
       // Get the fallback function passed to the CircuitBreaker

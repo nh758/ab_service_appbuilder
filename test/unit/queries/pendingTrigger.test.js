@@ -15,7 +15,7 @@ describe("pendingTrigger queries", () => {
 
    it("create() calls query with expected sql", () => {
       pendingTriggerTable.create(mockReq, {
-         requestId: "123",
+         requestID: "123",
          key: "key",
          data: { data: 1 },
          user: { username: "admin" },

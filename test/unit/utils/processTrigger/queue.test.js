@@ -33,13 +33,13 @@ const testQueueData = {
    124: {
       key: "newkey",
       data: { myData: true },
-      requestId: "124",
+      requestID: "124",
       user: { username: "admin" },
    },
    123: {
       key: "mykey",
       data: { myData: true },
-      requestId: "123",
+      requestID: "123",
       user: { username: "admin" },
    },
 };
@@ -65,7 +65,7 @@ describe("ProcessTriggerQueue", () => {
    it(".add() trigger to Queue if not exist", async () => {
       const queue = new ProcessTriggerQueue("tenant", () => {}, mockReq);
       const jobData = {
-         requestId: "124",
+         requestID: "124",
          key: "newkey",
          data: { myData: true },
       };
