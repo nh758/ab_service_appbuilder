@@ -10,7 +10,9 @@ const Errors = require("../utils/Errors");
 const RetryFind = require("../utils/RetryFind");
 const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.js");
 const { prepareBroadcast } = require("../utils/broadcast.js");
-const { registerProcessTrigger } = require("../utils/processTrigger.js");
+const {
+   registerProcessTrigger,
+} = require("../utils/processTrigger/manager.js");
 
 const { ref /*, raw  */ } = require("objection");
 

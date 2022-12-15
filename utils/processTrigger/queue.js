@@ -84,7 +84,6 @@ module.exports = class ProcessTriggerQueue {
     */
    async retryQueued() {
       const promises = [];
-      console.log("LET'S RETRY");
       for (let uuid in this.Queue) {
          const req = this.req;
          req._user = this.Queue[uuid].user; // use the original user so triggeredBy is correct

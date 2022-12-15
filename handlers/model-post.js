@@ -8,7 +8,9 @@ const cleanReturnData = require("../AppBuilder/utils/cleanReturnData");
 const Errors = require("../utils/Errors");
 const UpdateConnectedFields = require("../utils/broadcastUpdateConnectedFields.js");
 const { prepareBroadcast } = require("../utils/broadcast.js");
-const { registerProcessTrigger } = require("../utils/processTrigger.js");
+const {
+   registerProcessTrigger,
+} = require("../utils/processTrigger/manager.js");
 
 module.exports = {
    /**
