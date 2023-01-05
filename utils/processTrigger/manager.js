@@ -134,12 +134,12 @@ async function getProcessTriggerQueue(tenant, req, retryInterval) {
  */
 async function saveToQueue(req, jobData) {
    try {
-      const queue = await getProcessTriggerQueue(req.tenantID());
+      const queue = await getProcessTriggerQueue(req.tenantID(), req);
       await queue.add(req, jobData);
    } catch (err) {
-      console.log(err);
+      req.log(err);
       // Adding to the Queue failed too? then notify developers
-      // handle this
+      req.notify.developer(err, { jobData });
    }
    return "fallback";
 }

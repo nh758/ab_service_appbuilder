@@ -5,7 +5,7 @@
  */
 
 module.exports = function (req, fields = [], filterByTenantUUIDs = []) {
-   const DATABASE = "appbuilder-admin";
+   const DATABASE = req.connections()?.site?.database ?? "appbuilder-admin";
    const TABLE = "site_tenant";
    const sqlQuery = `SELECT ${
       fields.length ? `\`${fields.join("`, `")}\`` : "*"

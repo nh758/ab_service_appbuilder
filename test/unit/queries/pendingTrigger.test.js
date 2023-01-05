@@ -22,22 +22,31 @@ describe("pendingTrigger queries", () => {
       });
       assert(spyQuery.calledOnce);
       const expectedSql =
-         "INSERT INTO `mydb`.`SITE_PENDING_TRIGGER` (`uuid`, `created_at`, `updated_at`, `key`, `data`, `user`) VALUES ('123', NOW(), NOW(), 'key', '{\"data\":1}', '{\"username\":\"admin\"}')";
-      assert.equal(spyQuery.firstCall.firstArg, expectedSql);
+         "INSERT INTO `mydb`.`SITE_PENDING_TRIGGER` (`uuid`, `created_at`, `updated_at`, `key`, `data`, `user`) VALUES (?, NOW(), NOW(), ?, ?, ?)";
+      const expectedValues = [
+         "123",
+         "key",
+         '{"data":1}',
+         '{"username":"admin"}',
+      ];
+      assert.equal(spyQuery.firstCall.args[0], expectedSql);
+      assert.deepEqual(spyQuery.firstCall.args[1], expectedValues);
    });
 
    it("remove() calls query with expected sql", () => {
       pendingTriggerTable.remove(mockReq, "123");
       assert(spyQuery.calledOnce);
       const expectedSql =
-         "DELETE FROM `mydb`.`SITE_PENDING_TRIGGER` WHERE (`uuid` = '123')";
-      assert.equal(spyQuery.firstCall.firstArg, expectedSql);
+         "DELETE FROM `mydb`.`SITE_PENDING_TRIGGER` WHERE (`uuid` = ?)";
+      assert.equal(spyQuery.firstCall.args[0], expectedSql);
+      assert.deepEqual(spyQuery.firstCall.args[1], ["123"]);
    });
 
    it("list() calls query with expected sql", () => {
       pendingTriggerTable.list(mockReq, "123");
       assert(spyQuery.calledOnce);
       const expectedSql = "SELECT * FROM `mydb`.`SITE_PENDING_TRIGGER`";
-      assert.equal(spyQuery.firstCall.firstArg, expectedSql);
+      assert.equal(spyQuery.firstCall.args[0], expectedSql);
+      assert.deepEqual(spyQuery.firstCall.args[1], []);
    });
 });
