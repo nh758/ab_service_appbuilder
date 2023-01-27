@@ -116,18 +116,26 @@ module.exports = {
 
             // 1) make sure any incoming cond.where values are in our QB
             // format.  Like sails conditions, old filterConditions, etc...
+            req.performance?.mark("convertToQBConditions");
             object.convertToQueryBuilderConditions(cond);
+            req.performance?.measure("convertToQBConditions");
 
             // 2) make sure any given conditions also include the User's
             // scopes.
+            req.performance?.mark("includeScopes");
             object
                .includeScopes(cond, condDefaults, req)
                .then(() => {
+                  req.performance?.measure("includeScopes");
+
                   // 3) now Take all the conditions and reduce them to their final
                   // useable form: no complex in_query, contains_user, etc...
+                  req.performance?.mark("reduceConditions");
                   object
                      .reduceConditions(cond.where, condDefaults, req)
                      .then(() => {
+                        req.performance?.measure("reduceConditions");
+
                         req.log(`reduced where: ${JSON.stringify(cond.where)}`);
                         // 4) Perform the Find Operations
                         tryFind(object, cond, condDefaults, req)
