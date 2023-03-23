@@ -3,7 +3,7 @@
  * @description manages the unconfirmed process triggers for an individul tenant.
  */
 const pendingTriggerTable = require("../../queries/pendingTrigger.js");
-const AB = require("ab-utils");
+const AB = require("@digiserve/ab-utils");
 
 module.exports = class ProcessTriggerQueue {
    /**
