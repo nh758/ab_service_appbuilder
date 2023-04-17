@@ -61,15 +61,24 @@ function initCircuitBreaker(config) {
       // When 50% of requests fail, trip the circuit
       resetTimeout: config?.processTrigger?.circuit?.reset ?? 30000,
       // After 30 seconds, try again.
+      errorFilter: function (error, ...args) {
+         // if we receive an error that is due to "INVALIDINPUTS",
+         // update our developers then signal we can remove it.
+         if (error?.code == "EINVALIDINPUTS") {
+            // post an alert to our developer:
+            args[0].notify.developer(error, {
+               context:
+                  "appbuilder:utils/processTrigger/manager.js: we have called process.trigger with Invalid Inputs",
+               inputs: args[1],
+            });
+            // we return true so that we don't continue to make this request.
+            return true;
+         }
+         return false;
+      },
    };
    pmTriggerCircuitBreaker = new CircuitBreaker(
-      (req, jobData) =>
-         new Promise((resolve, reject) => {
-            req.serviceRequest("process_manager.trigger", jobData, (err) => {
-               if (err) reject(err);
-               else resolve();
-            });
-         }),
+      (req, jobData) => req.serviceRequest("process_manager.trigger", jobData),
       options
    );
    pmTriggerCircuitBreaker.fallback(saveToQueue);

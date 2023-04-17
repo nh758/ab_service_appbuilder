@@ -34,9 +34,11 @@ module.exports = class ProcessTriggerQueue {
          const pendingTriggers = await pendingTriggerTable.list(this.req);
          pendingTriggers.forEach((row) => {
             this.Queue[row.uuid] = {
-               key: row.key,
-               data: JSON.parse(row.data),
-               requestID: row.uuid,
+               data: {
+                  key: row.key,
+                  data: JSON.parse(row.data),
+                  requestID: row.uuid,
+               },
                user: JSON.parse(row.user),
             };
          });
@@ -59,9 +61,10 @@ module.exports = class ProcessTriggerQueue {
    async add(req, jobData) {
       const uuid = jobData.requestID;
       if (this.Queue[uuid]) return; //already queued
+      let data = JSON.parse(JSON.stringify(jobData));
       // save the req user to use on retry so that triggeredBy gets the correct user
       jobData.user = req._user;
-      this.Queue[uuid] = jobData;
+      this.Queue[uuid] = { data, user: jobData.user };
       await pendingTriggerTable.create(req, jobData);
       return;
    }
@@ -89,12 +92,14 @@ module.exports = class ProcessTriggerQueue {
    async retryQueued() {
       const promises = [];
       for (let uuid in this.Queue) {
-         const req = this.req;
-         req._user = this.Queue[uuid].user; // use the original user so triggeredBy is correct
+         const req = this.req.toABFactoryReq();
+         req.jobID = this.req.jobID;
          promises.push(
             (async () => {
-               const res = await this.retry(req, this.Queue[uuid]);
+               req._user = this.Queue[uuid].user; // use the original user so triggeredBy is correct
+               const res = await this.retry(req, this.Queue[uuid].data);
                if (res == "fallback") return; // This means we still need to retry
+
                await this.remove(this.req, uuid);
             })()
          );
