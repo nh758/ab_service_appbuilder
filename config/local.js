@@ -1,37 +1,34 @@
 /*
  * appbuilder
  */
+const AB = require("@digiserve/ab-utils");
+const env = AB.defaults.env;
+
 module.exports = {
    appbuilder: {
       /*************************************************************************/
       /* enable: {bool} is this service active?                                */
       /*************************************************************************/
-      enable:
-         typeof process.env.APPBUILDER_ENABLE == "undefined"
-            ? true
-            : JSON.parse(process.env.APPBUILDER_ENABLE),
+      enable: env("APPBUILDER_ENABLE", true),
    },
 
    /**
     * datastores:
     * Sails style DB connection settings
     */
-   datastores: {
-      appbuilder: {
-         adapter: "sails-mysql",
-         host: process.env.MYSQL_HOST || "db",
-         port: process.env.MYSQL_PORT || 3306,
-         user: process.env.MYSQL_USER || "root",
-         password: process.env.MYSQL_PASSWORD,
-         database: process.env.MYSQL_DBPREFIX || "appbuilder",
+   datastores: AB.defaults.datastores(),
+
+   /*
+    * ProcessTrigger
+    * defines how we retry our process triggers using a Circuit Breaker
+    * pattern.
+    */
+   processTrigger: {
+      circuit: {
+         timeout: env("CIRCUITBREAKER_TIMEOUT", 3000),
+         threshold: env("CIRCUITBREAKER_THRESHHOLD", 50),
+         reset: env("CIRCUITBREAKER_RESET", 30000),
       },
-      site: {
-         adapter: "sails-mysql",
-         host: process.env.MYSQL_HOST || "db",
-         port: process.env.MYSQL_PORT || 3306,
-         user: process.env.MYSQL_USER || "root",
-         password: process.env.MYSQL_PASSWORD,
-         database: process.env.MYSQL_DBADMIN || "appbuilder-admin",
-      },
+      retryInterval: 30000,
    },
 };
