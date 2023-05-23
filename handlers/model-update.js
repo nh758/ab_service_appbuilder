@@ -77,7 +77,7 @@ module.exports = {
                });
             }
 
-            var oldItem = null;
+            // var oldItem = null;
             var newRow = null;
             const packets = [];
             async.series(
@@ -110,49 +110,52 @@ module.exports = {
                      }
                   },
 
-                  // 1) pull the old Item so we can compare updated connected
-                  // entries that need to be updated.
-                  findOld: (done) => {
-                     req.performance.mark("find.old");
-                     // RetryFind(
-                     //    object,
-                     //    {
-                     //       where: {
-                     //          glue: "and",
-                     //          rules: [
-                     //             {
-                     //                key: object.PK(),
-                     //                rule: "equals",
-                     //                value: id,
-                     //             },
-                     //          ],
-                     //       },
-                     //       populate: true,
-                     //    },
-                     //    condDefaults,
-                     //    req
-                     // )
-                     req.retry(() =>
-                        object
-                           .model()
-                           .find({ where: { uuid: id }, populate: true }, req)
-                     )
-                        .then((result) => {
-                           req.performance.measure("find.old");
-                           oldItem = result;
-                           done();
-                        })
-                        .catch((err) => {
-                           req.notify.developer(err, {
-                              context:
-                                 "Service:appbuilder.model-update: finding old entry:",
-                              req,
-                              id,
-                              // condDefaults,
-                           });
-                           done(err);
-                        });
-                  },
+                  // NOTE: oldItem was used when we sent out 'stale' updates.  But we no
+                  // longer perform that.  So, taking this out:
+                  //
+                  // // 1) pull the old Item so we can compare updated connected
+                  // // entries that need to be updated.
+                  // findOld: (done) => {
+                  //    req.performance.mark("find.old");
+                  //    // RetryFind(
+                  //    //    object,
+                  //    //    {
+                  //    //       where: {
+                  //    //          glue: "and",
+                  //    //          rules: [
+                  //    //             {
+                  //    //                key: object.PK(),
+                  //    //                rule: "equals",
+                  //    //                value: id,
+                  //    //             },
+                  //    //          ],
+                  //    //       },
+                  //    //       populate: true,
+                  //    //    },
+                  //    //    condDefaults,
+                  //    //    req
+                  //    // )
+                  //    req.retry(() =>
+                  //       object
+                  //          .model()
+                  //          .find({ where: { uuid: id }, populate: true }, req)
+                  //    )
+                  //       .then((result) => {
+                  //          req.performance.measure("find.old");
+                  //          oldItem = result;
+                  //          done();
+                  //       })
+                  //       .catch((err) => {
+                  //          req.notify.developer(err, {
+                  //             context:
+                  //                "Service:appbuilder.model-update: finding old entry:",
+                  //             req,
+                  //             id,
+                  //             // condDefaults,
+                  //          });
+                  //          done(err);
+                  //       });
+                  // },
 
                   // 2) Perform the Initial Update of the data
                   update: (done) => {

@@ -163,11 +163,14 @@ module.exports = {
                               }
 
                               // clear any .password / .salt from SiteUser objects
-                              cleanReturnData(AB, object, result.data).then(
-                                 () => {
-                                    cb(null, result);
-                                 }
-                              );
+                              cleanReturnData(
+                                 AB,
+                                 object,
+                                 result.data,
+                                 cond.populate
+                              ).then(() => {
+                                 cb(null, result);
+                              });
                            })
                            .catch((err) => {
                               req.notify.developer(err, {
