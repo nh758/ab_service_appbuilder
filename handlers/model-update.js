@@ -149,7 +149,6 @@ module.exports = {
                   //          req.notify.developer(err, {
                   //             context:
                   //                "Service:appbuilder.model-update: finding old entry:",
-                  //             req,
                   //             id,
                   //             // condDefaults,
                   //          });
@@ -331,7 +330,6 @@ module.exports = {
             req.notify.developer(err, {
                context:
                   "Service:appbuilder.model-update: Error initializing ABFactory",
-               req,
             });
             cb(err);
          });

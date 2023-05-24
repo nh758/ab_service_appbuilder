@@ -276,7 +276,6 @@ module.exports = {
             req.notify.developer(err, {
                context:
                   "Service:appbuilder.model-delete: Error initializing ABFactory",
-               req,
             });
             cb(err);
          });

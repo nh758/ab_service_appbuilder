@@ -120,7 +120,6 @@ module.exports = {
                            req.notify.developer(err, {
                               context:
                                  "Service:appbuilder.model-post: Error creating entry",
-                              req,
                               values,
                               condDefaults,
                            });
@@ -280,7 +279,6 @@ module.exports = {
             req.notify.developer(err, {
                context:
                   "Service:appbuilder.model-post: Error initializing ABFactory",
-               req,
             });
             cb(Errors.repackageError(err));
          });
