@@ -208,7 +208,7 @@ module.exports = {
                                  const pureData = (
                                     await object.model().find(
                                        {
-                                          where: { uuid: id },
+                                          where: { uuid: newRow.uuid },
                                           populate: true,
                                           disableMinifyRelation: true,
                                        },
@@ -295,3 +295,4 @@ module.exports = {
          });
    },
 };
+
