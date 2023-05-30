@@ -70,6 +70,7 @@ module.exports = {
             var id = req.param("ID");
 
             var oldItem = null;
+            let pureData = null;
             // {valueHash}
             // the current value of the row we are deleting
 
@@ -91,6 +92,7 @@ module.exports = {
                                  uuid: id,
                               },
                               populate: true,
+                              disableMinifyRelation: true,
                            },
                            // condDefaults, // <-- .find() doesn't take
                            req
@@ -98,6 +100,7 @@ module.exports = {
                      )
                         .then((old) => {
                            oldItem = old ? old[0] : null;
+                           pureData = AB.cloneDeep(oldItem);
                            req.performance.measure("find.old");
                            return cleanReturnData(AB, object, [oldItem]).then(
                               () => {
@@ -201,13 +204,13 @@ module.exports = {
                            },
                            // update our Process.trigger events
                            processTrigger: async () => {
-                              if (!oldItem) {
+                              if (!pureData) {
                                  return;
                               }
                               try {
                                  await registerProcessTrigger(req, {
                                     key: `${object.id}.deleted`,
-                                    data: oldItem,
+                                    data: pureData,
                                  });
                                  return;
                               } catch (err) {
