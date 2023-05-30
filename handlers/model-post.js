@@ -205,9 +205,20 @@ module.exports = {
                            },
                            trigger: async () => {
                               try {
+                                 const pureData = (
+                                    await object.model().find(
+                                       {
+                                          where: { uuid: newRow.uuid },
+                                          populate: true,
+                                          disableMinifyRelation: true,
+                                       },
+                                       req
+                                    )
+                                 )[0];
+
                                  await registerProcessTrigger(req, {
                                     key: `${object.id}.added`,
-                                    data: newRow,
+                                    data: pureData,
                                  });
                                  return;
                               } catch (err) {
@@ -284,3 +295,4 @@ module.exports = {
          });
    },
 };
+

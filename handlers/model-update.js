@@ -253,9 +253,20 @@ module.exports = {
                            trigger: async () => {
                               if (fromProcessManager) return;
                               try {
+                                 const pureData = (
+                                    await object.model().find(
+                                       {
+                                          where: { uuid: id },
+                                          populate: true,
+                                          disableMinifyRelation: true,
+                                       },
+                                       req
+                                    )
+                                 )[0];
+
                                  await registerProcessTrigger(req, {
                                     key: `${object.id}.updated`,
-                                    data: newRow,
+                                    data: pureData,
                                  });
                                  return;
                               } catch (err) {
