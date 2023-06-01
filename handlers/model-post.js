@@ -25,6 +25,7 @@ module.exports = {
    inputValidation: {
       objectID: { string: { uuid: true }, required: true },
       values: { object: true, required: true },
+      disableStale: { boolean: true, optional: true },
       // uuid: {
       //    required: true,
       //    validation: { type: "uuid" }
@@ -119,7 +120,6 @@ module.exports = {
                            req.notify.developer(err, {
                               context:
                                  "Service:appbuilder.model-post: Error creating entry",
-                              req,
                               values,
                               condDefaults,
                            });
@@ -205,9 +205,20 @@ module.exports = {
                            },
                            trigger: async () => {
                               try {
+                                 const pureData = (
+                                    await object.model().find(
+                                       {
+                                          where: { uuid: newRow.uuid },
+                                          populate: true,
+                                          disableMinifyRelation: true,
+                                       },
+                                       req
+                                    )
+                                 )[0];
+
                                  await registerProcessTrigger(req, {
                                     key: `${object.id}.added`,
-                                    data: newRow,
+                                    data: pureData,
                                  });
                                  return;
                               } catch (err) {
@@ -220,6 +231,9 @@ module.exports = {
                            // object values.  This will make sure those entries are pushed up
                            // to the web clients.
                            staleUpates: (next) => {
+                              const isStaleDisabled = req.param("disableStale");
+                              if (isStaleDisabled) return next();
+
                               req.performance.mark("stale.update");
                               UpdateConnectedFields(
                                  AB,
@@ -276,9 +290,9 @@ module.exports = {
             req.notify.developer(err, {
                context:
                   "Service:appbuilder.model-post: Error initializing ABFactory",
-               req,
             });
             cb(Errors.repackageError(err));
          });
    },
 };
+

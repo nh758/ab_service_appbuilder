@@ -163,17 +163,19 @@ module.exports = {
                               }
 
                               // clear any .password / .salt from SiteUser objects
-                              cleanReturnData(AB, object, result.data).then(
-                                 () => {
-                                    cb(null, result);
-                                 }
-                              );
+                              cleanReturnData(
+                                 AB,
+                                 object,
+                                 result.data,
+                                 cond.populate
+                              ).then(() => {
+                                 cb(null, result);
+                              });
                            })
                            .catch((err) => {
                               req.notify.developer(err, {
                                  context:
                                     "Service:appbuilder.model-get: IN tryFind().catch() handler:",
-                                 req,
                                  cond,
                                  condDefaults,
                               });
@@ -184,7 +186,6 @@ module.exports = {
                         req.notify.developer(err, {
                            context:
                               "Service:appbuilder.model-get: ERROR reducing conditions:",
-                           req,
                            cond,
                         });
                         cb(err);
@@ -194,7 +195,6 @@ module.exports = {
                   req.notify.developer(err, {
                      context:
                         "Service:appbuilder.model-get: ERROR including scopes:",
-                     req,
                      cond,
                   });
                   cb(err);
@@ -204,7 +204,6 @@ module.exports = {
             req.notify.developer(err, {
                context:
                   "Service:appbuilder.model-get: Error initializing ABFactory",
-               req,
             });
             cb(err);
          });
