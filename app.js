@@ -8,6 +8,7 @@ const {
 } = require("./utils/processTrigger/manager.js");
 
 var controller = AB.controller("appbuilder");
+controller.waitForDB = true;
 controller.afterStartup((req, cb) => {
    initProcessTriggerQueues(req, AB.config())
       .then(cb)
