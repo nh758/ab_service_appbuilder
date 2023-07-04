@@ -10,6 +10,11 @@ module.exports = {
       /* enable: {bool} is this service active?                                */
       /*************************************************************************/
       enable: env("APPBUILDER_ENABLE", true),
+
+      /*************************************************************************/
+      /* labelUpdates: {bool} do we allow label update requests?               */
+      /*************************************************************************/
+      labelUpdates: env("APPBUILDER_LABEL_UPDATES", false),
    },
 
    /**
