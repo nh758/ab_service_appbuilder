@@ -26,6 +26,12 @@ jobs:
       version: ${{ github.event.client_payload.version }}
       identifier: p
 
+  debug:
+    needs: call-generate-build-meta
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ${{ needs.call-generate-build-meta.outputs.build }}
+
   call-bump-version:
     name: Version
     if: ${{ github.event.client_payload.type == 'minor' || github.event.client_payload.type == 'patch' }}
