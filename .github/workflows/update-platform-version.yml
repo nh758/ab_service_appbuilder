@@ -21,7 +21,7 @@ jobs:
 
   call-generate-build-meta:
     name: Meta
-    uses: digi-serve/.github/.github/workflows/generate-build-meta.yml@nh/skip-test
+    uses: digi-serve/.github/.github/workflows/generate-build-meta.yml@master
     with: 
       version: ${{ github.event.client_payload.version }}
       identifier: p
